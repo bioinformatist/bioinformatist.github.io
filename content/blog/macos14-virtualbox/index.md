@@ -60,7 +60,7 @@ cd "C:\Program Files\Oracle\VirtualBox\"
 
 [^1]: 可能会出现如下图的报错：
 ![smc_error.png](smc_error.png)
-[据说](https://www.reddit.com/r/VFIO/comments/tkqsx4/comment/kc78it0/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button)是BIOS中Hyper-V设置的问题（也可能直接就不支持Hyper-V），我暂时没时间验证，改成
+[据说](https://www.reddit.com/r/VFIO/comments/tkqsx4/comment/kc78it0/)是BIOS中Hyper-V设置的问题（也可能直接就不支持Hyper-V），我暂时没时间验证，改成
 ```
 ./VBoxManage setextradata "VM NAME" "VBoxInternal/Devices/smc/0/Config/GetKeyFromRealSMC" 0
 ```
