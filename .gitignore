@@ -1,0 +1,8 @@
+node_modules/
+dist/
+public/
+.vercel/
+.netlify/
+npm-debug.log*
+platform-exports/
+.lighthouseci/

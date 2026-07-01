@@ -1,0 +1,50 @@
+// Black/amber skin inspired by high-contrast orange-on-black interfaces.
+// Light mode stays neutral for resume readability; dark mode carries the stronger look.
+@mixin theme-variables($theme) {
+    @if $theme == 'light' {
+        --background-color: #fbfbf8;
+        --bg-0: #f1f0eb;
+        --bg-1: #e7e4dc;
+        --bg-2: #ffffff;
+        --bg-3: #d6d0c3;
+        --hover-color: #ffffff;
+        --primary-color: #b45309;
+        --divider-color: #ddd6c8;
+        --text-color: #222226;
+        --text-color-high-contrast: #171717;
+        --meta-color: #5f5a51;
+        --codeblock-bg: #211f1c;
+        --codeblock-highlight: #343029;
+        color-scheme: light;
+    }
+    @else if $theme == 'dark' {
+        --background-color: #111111;
+        --bg-0: #1b1b1b;
+        --bg-1: #242424;
+        --bg-2: #171717;
+        --bg-3: #3a3428;
+        --hover-color: #111111;
+        --primary-color: #f59e0b;
+        --divider-color: #3a3327;
+        --text-color: #e7e5df;
+        --text-color-high-contrast: #fff7ed;
+        --meta-color: #b8afa2;
+        --codeblock-bg: #1b1712;
+        --codeblock-highlight: #302719;
+        color-scheme: dark;
+    }
+}
+
+:root {
+    @include theme-variables('light');
+}
+
+[data-theme='dark'] {
+    @include theme-variables('dark');
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+        @include theme-variables('dark');
+    }
+}

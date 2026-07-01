@@ -1,0 +1,72 @@
+{%- set separator = config.extra.separator | default(value="•") -%}
+{%- set rel_attributes = macros_rel_attributes::rel_attributes() | trim -%}
+{%- set blank_target = macros_target_attribute::target_attribute(new_tab=config.markdown.external_links_target_blank) -%}
+{%- set copyright = config.extra.copyright | default(value="") -%}
+{%- if config.extra.copyright_translations and lang in config.extra.copyright_translations -%}
+    {%- set copyright = config.extra.copyright_translations[lang] -%}
+{%- endif -%}
+{%- set current_year = now() | date(format="%Y") -%}
+{%- set author = config.author | default(value="") -%}
+{%- set title = config.title | default(value="") -%}
+{%- set email_needs_decoding = false -%}
+{%- if config.extra.email -%}
+    {%- set email_needs_decoding = (config.extra.email is not containing("@")) or config.extra.encode_plaintext_email -%}
+{%- endif -%}
+
+<footer>
+    <section>
+        {%- if config.extra.footer_menu -%}
+        <nav class="nav-navs footer-menu">
+            <small>
+                <ul>
+                    {%- for menu in config.extra.footer_menu -%}
+                    <li>
+                        {%- set trailing_slash = menu.trailing_slash | default(value=true) -%}
+                        {%- if menu.url == "atom.xml" -%}
+                            {%- set url = get_url(path=menu.url, lang=lang, trailing_slash=trailing_slash) -%}
+                        {%- elif menu.url == "sitemap.xml" -%}
+                            {%- set url = get_url(path=menu.url, trailing_slash=trailing_slash) -%}
+                        {%- elif menu.url is starting_with("http") -%}
+                            {%- if trailing_slash -%}
+                                {%- set url = menu.url ~ "/" -%}
+                            {%- else -%}
+                                {%- set url = menu.url -%}
+                            {%- endif -%}
+                        {%- else -%}
+                            {%- set url = get_url(path=menu.url, lang=lang, trailing_slash=trailing_slash) -%}
+                        {%- endif -%}
+                        <a class="nav-links no-hover-padding" href="{{ url }}">
+                            {{ macros_translate::translate(key=menu.name, default=menu.name, language_strings=language_strings) }}
+                        </a>
+                    </li>
+                    {%- endfor -%}
+                </ul>
+            </small>
+        </nav>
+        {%- endif -%}
+
+        <div class="credits">
+            <small>
+                {{ macros_translate::translate(key="powered_by", default="Powered by", language_strings=language_strings) }}
+                <a rel="{{ rel_attributes }}" {{ blank_target }} href="https://www.getzola.org">Zola</a>
+                {{ macros_translate::translate(key="and", default="&", language_strings=language_strings) }}
+                <a rel="{{ rel_attributes }}" {{ blank_target }} href="https://github.com/welpo/tabi">tabi</a>
+
+                {%- if config.extra.remote_repository_url and config.extra.show_remote_source | default(value=true) -%}
+                {{ separator }}
+                    <a rel="{{ rel_attributes }}" {{ blank_target }} href="{{ config.extra.remote_repository_url }}">
+                        {{ macros_translate::translate(key="site_source", default="Site source", language_strings=language_strings) }}
+                    </a>
+                {%- endif -%}
+            </small>
+        </div>
+    </section>
+
+    {%- if config.build_search_index -%}
+    {% include "partials/search_modal.html" %}
+    {%- endif -%}
+
+    {%- if email_needs_decoding -%}
+    <script src="{{ get_url(path='js/decodeMail.js') }}" async></script>
+    {%- endif -%}
+</footer>

@@ -1,0 +1,18 @@
+{
+  "name": "bioinformatist.github.io",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/zola-serve-lan.mjs",
+    "build": "node scripts/build-site.mjs",
+    "avatar": "node scripts/build-avatar.mjs && npm run favicon && npm run social-card",
+    "favicon": "node scripts/build-favicon.mjs",
+    "social-card": "node scripts/build-social-card.mjs",
+    "preview": "node scripts/zola-serve-lan.mjs",
+    "lint:actions": "actionlint",
+    "audit:lighthouse": "node scripts/audit-lighthouse.mjs",
+    "export:platform": "node scripts/export-platform-articles.mjs",
+    "wechat:push-draft": "node scripts/wechat-push-draft.mjs --dry-run"
+  }
+}

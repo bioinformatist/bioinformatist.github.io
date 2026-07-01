@@ -1,0 +1,95 @@
+.content:has(#sun-yu),
+.content:has(#yu-sun) {
+  box-sizing: border-box;
+  max-width: 820px;
+}
+
+@media screen and (min-width: 760px) {
+  body:has(#sun-yu),
+  body:has(#yu-sun) {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--bg-0) 72%, transparent), transparent 18rem),
+      var(--background-color);
+  }
+
+  .content:has(#sun-yu),
+  .content:has(#yu-sun) {
+    margin-top: 3.25rem;
+    margin-bottom: 5rem;
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    background: var(--background-color);
+    box-shadow:
+      0 18px 42px rgb(0 0 0 / 10%),
+      0 2px 8px rgb(0 0 0 / 6%);
+    padding: 3.25rem 4rem 3.75rem;
+  }
+}
+
+@media screen and (max-width: 759px) {
+  .content:has(#sun-yu),
+  .content:has(#yu-sun) {
+    margin-top: 2.5rem;
+  }
+}
+
+.content:has(#sun-yu) .section-title,
+.content:has(#yu-sun) .section-title {
+  border-bottom: 1px solid var(--divider-color);
+  padding-bottom: 0.7rem;
+}
+
+.content:has(#sun-yu) #page-content,
+.content:has(#yu-sun) #page-content {
+  margin-top: 2rem;
+}
+
+.content:has(#sun-yu) #page-content main,
+.content:has(#yu-sun) #page-content main {
+  max-width: none;
+}
+
+.content:has(#sun-yu) #page-content h2,
+.content:has(#yu-sun) #page-content h2 {
+  margin-top: 2.2rem;
+}
+
+.content:has(#sun-yu) #page-content h2:first-child,
+.content:has(#yu-sun) #page-content h2:first-child {
+  margin-top: 0;
+}
+
+.content:has(#sun-yu) #page-content h3,
+.content:has(#yu-sun) #page-content h3 {
+  margin-top: 1.6rem;
+  margin-bottom: 0.25rem;
+}
+
+.content:has(#sun-yu) #page-content p,
+.content:has(#yu-sun) #page-content p {
+  margin-top: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.content:has(#sun-yu) #page-content ul,
+.content:has(#yu-sun) #page-content ul {
+  margin-top: 0.65rem;
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .content:has(#sun-yu),
+  :root:not([data-theme='light']) .content:has(#yu-sun) {
+    background: color-mix(in srgb, var(--background-color) 94%, white);
+    box-shadow:
+      0 18px 42px rgb(0 0 0 / 30%),
+      0 2px 8px rgb(0 0 0 / 18%);
+  }
+}
+
+[data-theme='dark'] .content:has(#sun-yu),
+[data-theme='dark'] .content:has(#yu-sun) {
+  background: color-mix(in srgb, var(--background-color) 94%, white);
+  box-shadow:
+    0 18px 42px rgb(0 0 0 / 30%),
+    0 2px 8px rgb(0 0 0 / 18%);
+}

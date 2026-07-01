@@ -1,0 +1,75 @@
+{% extends "index.html" %}
+
+{% block main_content %}
+
+{%- set title = macros_translate::translate(key="all_tags", default="All tags", language_strings=language_strings) -%}
+
+{{ macros_page_header::page_header(title=title)}}
+
+{% set tag_count = terms | length %}
+{% if config.extra.tag_sorting == "frequency" %}
+    {% set max_count = 0 %}
+    {% for term in terms %}
+        {% set number_of_posts = term.pages | length %}
+        {% if number_of_posts > max_count %}
+            {% set_global max_count = number_of_posts %}
+        {% endif %}
+    {% endfor %}
+{% elif config.extra.tag_sorting != "name" %}
+    {{ throw (message="Invalid tag_sorting option: " ~ config.extra.tag_sorting ~ ". Valid options are 'name' and 'frequency'.") }}
+{% endif %}
+
+<div id="tag-cloud" class="{% if tag_count > 16 %}three-columns{% elif tag_count > 8 %}two-columns{% endif %}">
+    <ul class="tags">
+        {%- if config.extra.tag_sorting == "frequency" -%}
+            {%- set count_range = range(end=max_count + 1) | reverse -%}
+            {%- for count in count_range -%}
+                {%- if count > 0 -%}
+                    {%- for term in terms -%}
+                        {%- set number_of_posts = term.pages | length -%}
+                        {%- if number_of_posts == count -%}
+                            <li class="tags-item">
+                                {% if config.extra.compact_tags %}
+                                    <a href="{{ term.permalink | safe }}"
+                                       aria-label="{{ term.name }} –
+                                        {{ term.pages | length }}
+                                        {{- macros_translate::translate(key="posts", number=number_of_posts, default="$NUMBER posts", language_strings=language_strings) -}}
+                                    ">
+                                        {{ term.name }}
+                                    </a> <sup>{{ number_of_posts }}</sup>
+                                {% else %}
+                                    <a href="{{ term.permalink | safe }}">
+                                        {{ term.name }} </a>
+                                    <span> – </span>
+                                    {{- macros_translate::translate(key="posts", number=number_of_posts, default="$NUMBER posts", language_strings=language_strings) -}}
+                                {% endif %}
+                            </li>
+                        {%- endif -%}
+                    {%- endfor -%}
+                {%- endif -%}
+            {%- endfor -%}
+        {%- else -%}
+            {%- for term in terms -%}
+                <li class="tags-item">
+                    {%- set number_of_posts = term.pages | length -%}
+                    {% if config.extra.compact_tags %}
+                        <a href="{{ term.permalink | safe }}"
+                           aria-label="{{ term.name }} –
+                            {{ term.pages | length }}
+                            {{- macros_translate::translate(key="posts", number=number_of_posts, default="$NUMBER posts", language_strings=language_strings) -}}
+                        ">
+                            {{ term.name }}
+                        </a> <sup>{{ number_of_posts }}</sup>
+                    {% else %}
+                        <a href="{{ term.permalink | safe }}">
+                            {{ term.name }} </a>
+                        <span> – </span>
+                        {{- macros_translate::translate(key="posts", number=number_of_posts, default="$NUMBER posts", language_strings=language_strings) -}}
+                    {% endif %}
+                </li>
+            {%- endfor -%}
+        {%- endif -%}
+    </ul>
+</div>
+
+{% endblock main_content %}

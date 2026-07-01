@@ -1,0 +1,128 @@
+<head>
+    <meta charset="UTF-8">
+
+    {%- if macros_settings::evaluate_setting_priority(setting="enable_csp", page=page | default(value=""), section=section | default(value=""), default_global_value="true") == "true" -%}
+        {%- include "partials/content_security_policy.html" -%}
+    {%- endif -%}
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="base" content="{{ config.base_url | safe }}">
+    <title>{%- include "partials/title.html" -%}</title>
+
+    <link rel="icon" type="image/png" href="{{ get_url(path=config.extra.favicon | default(value='favicon.png')) }}">
+
+    {%- if config.generate_feeds | default(value=config.generate_feed) -%}
+        {%- for feed in config.feed_filenames | default(value=['atom.xml']) -%}
+            {%- if feed == "atom.xml" -%}
+                <link rel="alternate" type="application/atom+xml" title="{{ config.title | safe }} - Atom Feed" href="{{ get_url(path=feed, lang=lang, trailing_slash=false) | safe }}">
+            {%- elif feed == "rss.xml" -%}
+                <link rel="alternate" type="application/rss+xml" title="{{ config.title | safe }} - RSS Feed" href="{{ get_url(path=feed, lang=lang, trailing_slash=false) | safe }}">
+            {%- else -%}
+                <link rel="alternate" href="{{ get_url(path=feed, lang=lang, trailing_slash=false) | safe }}">
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+
+    {%- if config.extra.enable_subset -%}
+        {%- if config.extra.custom_subset == true -%}
+            <link rel="stylesheet" href="{{ get_url(path='custom_subset.css', cachebust=true) }}">
+        {%- elif lang == 'en' -%}
+            <link rel="stylesheet" href="{{ get_url(path='inter_subset_en.css', cachebust=true) }}">
+        {%- endif -%}
+    {%- endif -%}
+
+    {%- set stylesheets = ["main.css"] -%}
+    {%- if config.extra.stylesheets -%}
+        {%- set_global stylesheets = stylesheets | concat(with=config.extra.stylesheets) -%}
+    {%- endif -%}
+    {%- if page.extra.stylesheets -%}
+        {%- set_global stylesheets = stylesheets | concat(with=page.extra.stylesheets) -%}
+    {%- endif -%}
+    {%- if config.extra.skin -%}
+        {%- set_global stylesheets = stylesheets | concat(with='skins/' ~ config.extra.skin ~ '.css') -%}
+    {%- endif -%}
+    {%- for stylesheet in stylesheets -%}
+        <link rel="stylesheet" href="{{ get_url(path=stylesheet, cachebust=true) | safe }}">
+    {%- endfor -%}
+
+    <meta name="color-scheme" content="{%- if config.extra.theme_switcher -%}light dark{%- elif config.extra.default_theme -%}{{ config.extra.default_theme }}{%- else -%}light{%- endif -%}">
+
+    {%- if config.extra.browser_theme_color and config.extra.browser_theme_color is iterable -%}
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="{{ config.extra.browser_theme_color[0] }}">
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="{{ config.extra.browser_theme_color[1] }}">
+    {%- elif config.extra.browser_theme_color -%}
+        <meta name="theme-color" content="{{ config.extra.browser_theme_color }}">
+    {%- endif -%}
+
+    {%- if page.description -%}
+        <meta name="description" content="{{ page.description }}">
+        <meta property="og:description" content="{{ page.description }}">
+    {%- elif section.description -%}
+        <meta name="description" content="{{ section.description }}">
+        <meta property="og:description" content="{{ section.description }}">
+    {%- elif page.summary -%}
+        <meta name="description" content="{{ page.summary | striptags | trim_end_matches(pat='.') | safe }}...">
+        <meta property="og:description" content="{{ page.summary | striptags | trim_end_matches(pat='.') | safe }}...">
+    {%- else -%}
+        <meta name="description" content="{{ config.description }}">
+        <meta property="og:description" content="{{ config.description }}">
+    {%- endif -%}
+
+    {%- if is_404 -%}
+        <meta name="robots" content="noindex, follow">
+    {%- endif -%}
+
+    {%- set_global og_title = config.title -%}
+    {%- if section.title -%}
+        {%- set_global og_title = section.title -%}
+    {%- endif -%}
+    {%- if section.path and (section.path == "/" or section.path == "/en/") -%}
+        {%- set_global og_title = config.title -%}
+    {%- endif -%}
+    {%- if page.title -%}
+        {%- set_global og_title = page.title -%}
+    {%- endif -%}
+
+    {%- set_global og_type = "website" -%}
+    {%- if page.path and (page.path is containing("/blog/") or page.path is containing("/projects/")) -%}
+        {%- set_global og_type = "article" -%}
+    {%- elif section.path and section.path is containing("/resume/") -%}
+        {%- set_global og_type = "profile" -%}
+    {%- endif -%}
+
+    <meta property="og:title" content="{{ og_title | safe }}">
+    <meta property="og:type" content="{{ og_type }}">
+
+    {%- include "partials/social_media_images.html" -%}
+
+    {%- if config.languages | length > 0 and current_url -%}
+        {%- include "partials/multilingual_tags.html" -%}
+    {%- else -%}
+        <meta property="og:locale" content="{{ macros_translate::translate(key='date_locale', default='en_GB', language_strings=language_strings) }}">
+    {%- endif -%}
+
+    {%- if current_url -%}
+        {%- if page.extra.canonical_url or section.extra.canonical_url -%}
+            {%- set_global canonical_url = page.extra.canonical_url | default(value=section.extra.canonical_url) -%}
+        {%- elif config.extra.base_canonical_url -%}
+            {%- set_global canonical_url = current_url | replace(from=config.base_url, to=config.extra.base_canonical_url) -%}
+        {%- endif -%}
+    {%- endif -%}
+
+    {%- if canonical_url -%}
+        <link rel="canonical" href="{{ canonical_url }}">
+        <meta property="og:url" content="{{ canonical_url }}">
+    {%- elif current_url -%}
+        <meta property="og:url" content="{{ current_url }}">
+    {%- endif -%}
+
+    <meta property="og:site_name" content="{{ config.title }}">
+
+    {%- if config.extra.theme_switcher -%}
+        <noscript><link rel="stylesheet" href="{{ get_url(path='no_js.css') | safe }}"></noscript>
+        <script src="{{ get_url(path='js/initializeTheme.min.js') | safe }}"></script>
+        <script defer src="{{ get_url(path='js/themeSwitcher.min.js', trailing_slash=false) | safe }}"></script>
+    {%- endif -%}
+
+    {% include "tabi/extend_head.html" ignore missing %}
+</head>

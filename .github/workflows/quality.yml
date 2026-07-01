@@ -1,0 +1,47 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    name: Build and links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Lint workflow files
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+      - uses: cachix/install-nix-action@v31
+      - run: nix develop -c npm run build
+      - name: Check internal links
+        uses: lycheeverse/lychee-action@v2.8.0
+        with:
+          args: >-
+            --config lychee.toml
+            --root-dir ${{ github.workspace }}/dist
+            --offline
+            "dist/**/*.html"
+          fail: true
+          jobSummary: true
+      - name: Check external links
+        if: github.event_name != 'pull_request'
+        uses: lycheeverse/lychee-action@v2.8.0
+        with:
+          args: >-
+            --config lychee.toml
+            --root-dir ${{ github.workspace }}/dist
+            "dist/**/*.html"
+          fail: true
+          jobSummary: true

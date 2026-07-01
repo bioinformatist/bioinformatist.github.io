@@ -1,0 +1,79 @@
+base_url = "https://bioinformatist.github.io"
+title = "孙瑜"
+description = "孙瑜的个人首页：生物信息、数据科学、软件工程，以及公开简历、项目和文章。"
+author = "孙瑜"
+theme = "tabi"
+default_language = "zh-Hans"
+generate_feeds = true
+feed_filenames = ["atom.xml"]
+compile_sass = true
+minify_html = true
+build_search_index = false
+taxonomies = [{ name = "tags", feed = true }]
+
+[languages.en]
+title = "Yu Sun"
+description = "Yu Sun's personal site for bioinformatics, data science, software engineering, public resume, projects, and posts."
+generate_feeds = true
+feed_filenames = ["atom.xml"]
+taxonomies = [{ name = "tags", feed = true }]
+
+[markdown]
+bottom_footnotes = true
+smart_punctuation = true
+external_links_class = "external"
+external_links_target_blank = true
+github_alerts = true
+
+[markdown.highlighting]
+theme = "catppuccin-frappe"
+style = "class"
+error_on_missing_language = false
+
+[extra]
+theme_switcher = true
+skin = "black-orange"
+short_date_format = "%Y-%m-%d"
+long_date_format = "%Y-%m-%d"
+archive_date_format = "%m-%d"
+invert_title_order = true
+tag_sorting = "frequency"
+compact_tags = false
+stylesheets = ["giallo.css", "site.css", "resume.css"]
+favicon = "favicon.png"
+social_media_card = "img/social-card-home.png"
+browser_theme_color = ["#fbfbf8", "#111111"]
+remote_repository_url = "https://github.com/bioinformatist/bioinformatist.github.io"
+remote_repository_git_platform = "github"
+remote_repository_branch = "main"
+show_remote_changes = false
+show_remote_source = true
+copy_button = true
+show_previous_next_article_links = true
+invert_previous_next_article_links = true
+show_selected_language_code_in_language_switcher = false
+feed_icon = true
+full_content_in_feed = true
+email = "eXN1bjg4ODg4OEBnbWFpbC5jb20="
+encode_plaintext_email = true
+author_translations = { "zh-Hans" = "孙瑜", "en" = "Yu Sun" }
+copyright = "Yu Sun"
+copyright_translations = { "zh-Hans" = "孙瑜" }
+
+menu = [
+  { name = "blog", url = "blog", trailing_slash = true, lang_aware = true },
+  { name = "archive", url = "archive", trailing_slash = true, lang_aware = true },
+  { name = "tags", url = "tags", trailing_slash = true, lang_aware = true },
+  { name = "projects", url = "projects", trailing_slash = true, lang_aware = true },
+  { name = "resume", url = "resume", trailing_slash = true, lang_aware = true },
+]
+
+footer_menu = [
+  { name = "Atom", url = "atom.xml", trailing_slash = false },
+  { name = "sitemap", url = "sitemap.xml", trailing_slash = false },
+]
+
+socials = [
+  { name = "GitHub", icon = "github", url = "https://github.com/bioinformatist" },
+  { name = "X", icon = "x", url = "https://x.com/ysun1993" },
+]

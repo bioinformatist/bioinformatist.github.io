@@ -1,0 +1,63 @@
+{%- set language_label = macros_translate::translate(key="language_selection", default="Language selection", language_strings=language_strings) -%}
+{%- set path = current_path | default(value="/") -%}
+{%- set normalized_path = path -%}
+{%- if lang == config.default_language -%}
+    {%- set other_lang = "en" -%}
+    {%- set current_name = "简体中文" -%}
+    {%- set other_name = "English" -%}
+{%- else -%}
+    {%- set other_lang = config.default_language -%}
+    {%- set current_name = "English" -%}
+    {%- set other_name = "简体中文" -%}
+    {%- if path == "/en/" -%}
+        {%- set normalized_path = "/" -%}
+    {%- elif path is starting_with("/en/") -%}
+        {%- set normalized_path = path | replace(from="/en/", to="/") -%}
+    {%- endif -%}
+{%- endif -%}
+
+{%- if normalized_path == "/" -%}
+    {%- set switch_url = get_url(path="/", lang=other_lang, trailing_slash=(other_lang == config.default_language)) -%}
+{%- else -%}
+    {%- set_global switch_url = "" -%}
+    {%- if section.translations -%}
+        {%- set current_translations = section.translations -%}
+    {%- elif page.translations -%}
+        {%- set current_translations = page.translations -%}
+    {%- endif -%}
+    {%- if current_translations -%}
+        {%- for translation in current_translations -%}
+            {%- set lcode = translation.lang | default(value=config.default_language) -%}
+            {%- if lcode == other_lang -%}
+                {%- set_global switch_url = translation.permalink -%}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+    {%- if not switch_url -%}
+        {%- if normalized_path is starting_with("/resume/") -%}
+            {%- set_global switch_url = get_url(path="resume", lang=other_lang, trailing_slash=true) -%}
+        {%- elif normalized_path is starting_with("/archive/") -%}
+            {%- set_global switch_url = get_url(path="archive", lang=other_lang, trailing_slash=true) -%}
+        {%- elif normalized_path is starting_with("/tags/") -%}
+            {%- set_global switch_url = get_url(path="tags", lang=other_lang, trailing_slash=true) -%}
+        {%- elif normalized_path is starting_with("/projects/") -%}
+            {%- set_global switch_url = get_url(path="projects", lang=other_lang, trailing_slash=true) -%}
+        {%- elif normalized_path is starting_with("/blog/") -%}
+            {%- set_global switch_url = get_url(path="blog", lang=other_lang, trailing_slash=true) -%}
+        {%- else -%}
+            {%- set_global switch_url = get_url(path="/", lang=other_lang, trailing_slash=(other_lang == config.default_language)) -%}
+        {%- endif -%}
+    {%- endif -%}
+{%- endif -%}
+
+<li class="language-switcher">
+    <details class="dropdown">
+        <summary role="button" aria-haspopup="true" title="{{ language_label }}" aria-label="{{ language_label }}">
+            <div class="language-switcher-icon"></div>
+        </summary>
+        <div class="dropdown-content" role="menu">
+            {{ current_name }}
+            <a role="menuitem" lang="{{ other_lang }}" aria-label="{{ other_name }}" href="{{ switch_url }}">{{ other_name }}</a>
+        </div>
+    </details>
+</li>
