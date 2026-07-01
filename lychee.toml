@@ -3,3 +3,7 @@ index_files = ["index.html"]
 include_fragments = true
 skip_missing = false
 timeout = 20
+
+exclude = [
+  '^https://(www\.)?reddit\.com/',
+]
