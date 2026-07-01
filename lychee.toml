@@ -1,5 +1,5 @@
 no_progress = true
 index_files = ["index.html"]
-include_fragments = "full"
+include_fragments = true
 skip_missing = false
 timeout = 20
