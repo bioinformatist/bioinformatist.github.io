@@ -41,6 +41,8 @@ npm run wechat:push-draft
 
 `export:platform` writes X Article and WeChat copy/paste packages into `platform-exports/`. That directory is ignored because exports are reproducible from source.
 
+Platform article drafts may use headings, lists, blockquotes, tables, fenced code blocks, images, inline math, and display math. X Article exports keep the source Markdown; WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX.
+
 `wechat:push-draft` is intentionally dry-run only until the real Official Account permissions and secrets are verified.
 
 `audit:lighthouse` builds the site with a local `base_url`, serves `dist/`, runs the Nix-provided Google Lighthouse CLI, checks score thresholds, and writes JSON reports to `.lighthouseci/`. On Linux, the `.#lighthouse` Nix shell provides Chromium, CJK fonts, and `CHROME_PATH`.

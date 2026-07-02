@@ -53,49 +53,275 @@ function parseYaml(raw) {
 
 function markdownToPlainText(markdown) {
   return markdown
-    .replace(/```[\s\S]*?```/g, "")
+    .replace(/```[^\n]*\n([\s\S]*?)```/g, "$1")
+    .replace(/\$\$([\s\S]*?)\$\$/g, "$1")
+    .replace(/\$(?!\s)([^$\n]+?)(?<!\s)\$/g, "$1")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[*_`>]/g, "")
+    .replace(/^\s*\|?[-: ]+\|[-: |]+\|?\s*$/gm, "")
+    .replace(/[*_`>|]/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
 function markdownToWechatHtml(markdown) {
-  const lines = markdown.split("\n");
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const html = [];
-  let inParagraph = false;
+  let i = 0;
 
-  function closeParagraph() {
-    if (inParagraph) {
-      html.push("</p>");
-      inParagraph = false;
-    }
-  }
-
-  for (const line of lines) {
+  while (i < lines.length) {
+    const line = lines[i];
     if (!line.trim()) {
-      closeParagraph();
+      i += 1;
       continue;
     }
-    const heading = line.match(/^(#{2,4})\s+(.+)$/);
+
+    const fence = line.match(/^(`{3,}|~{3,})\s*([A-Za-z0-9_-]+)?\s*$/);
+    if (fence) {
+      const marker = fence[1][0];
+      const language = fence[2] || "";
+      const code = [];
+      i += 1;
+      while (i < lines.length && !new RegExp(`^${marker}{3,}\\s*$`).test(lines[i])) {
+        code.push(lines[i]);
+        i += 1;
+      }
+      if (i < lines.length) i += 1;
+      html.push(renderCodeBlock(code.join("\n"), language));
+      continue;
+    }
+
+    if (line.trim().startsWith("$$")) {
+      const { tex, nextIndex } = readDisplayMath(lines, i);
+      html.push(renderDisplayMath(tex));
+      i = nextIndex;
+      continue;
+    }
+
+    if (isTableStart(lines, i)) {
+      const { html: tableHtml, nextIndex } = renderTable(lines, i);
+      html.push(tableHtml);
+      i = nextIndex;
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
     if (heading) {
-      closeParagraph();
       const level = Math.min(heading[1].length, 3);
-      html.push(`<h${level}>${escapeHtml(heading[2])}</h${level}>`);
+      html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+      i += 1;
       continue;
     }
-    if (!inParagraph) {
-      html.push("<p>");
-      inParagraph = true;
-    } else {
-      html.push("<br />");
+
+    if (/^\s*>\s?/.test(line)) {
+      const quote = [];
+      while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
+        quote.push(lines[i].replace(/^\s*>\s?/, ""));
+        i += 1;
+      }
+      html.push(
+        `<blockquote style="border-left: 4px solid #d9d9d9; margin: 1em 0; padding: 0.5em 0 0.5em 1em; color: #555;">${quote
+          .map(renderInline)
+          .join("<br />")}</blockquote>`,
+      );
+      continue;
     }
-    html.push(escapeHtml(line));
+
+    const unordered = line.match(/^\s*[-*+]\s+(.+)$/);
+    const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+    if (unordered || ordered) {
+      const orderedList = Boolean(ordered);
+      const items = [];
+      const pattern = orderedList ? /^\s*\d+[.)]\s+(.+)$/ : /^\s*[-*+]\s+(.+)$/;
+      while (i < lines.length) {
+        const item = lines[i].match(pattern);
+        if (!item) break;
+        items.push(item[1]);
+        i += 1;
+      }
+      const tag = orderedList ? "ol" : "ul";
+      html.push(`<${tag}>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</${tag}>`);
+      continue;
+    }
+
+    if (/^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
+      html.push("<hr />");
+      i += 1;
+      continue;
+    }
+
+    const image = line.trim().match(/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/);
+    if (image) {
+      const [, alt, src, title] = image;
+      const caption = title || alt;
+      html.push(
+        `<figure><img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" />${
+          caption ? `<figcaption>${renderInline(caption)}</figcaption>` : ""
+        }</figure>`,
+      );
+      i += 1;
+      continue;
+    }
+
+    const paragraph = [];
+    while (i < lines.length && lines[i].trim() && !startsBlock(lines, i)) {
+      paragraph.push(lines[i].trim());
+      i += 1;
+    }
+    html.push(`<p>${paragraph.map(renderInline).join("<br />")}</p>`);
   }
-  closeParagraph();
+
   return html.join("\n");
+}
+
+function startsBlock(lines, index) {
+  const line = lines[index] || "";
+  return (
+    /^(`{3,}|~{3,})/.test(line) ||
+    line.trim().startsWith("$$") ||
+    isTableStart(lines, index) ||
+    /^#{1,4}\s+/.test(line) ||
+    /^\s*>\s?/.test(line) ||
+    /^\s*[-*+]\s+/.test(line) ||
+    /^\s*\d+[.)]\s+/.test(line) ||
+    /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/.test(line) ||
+    /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/.test(line.trim())
+  );
+}
+
+function readDisplayMath(lines, index) {
+  const first = lines[index].trim();
+  const inline = first.match(/^\$\$\s*(.+?)\s*\$\$$/);
+  if (inline) return { tex: inline[1], nextIndex: index + 1 };
+
+  const tex = [first.replace(/^\$\$\s?/, "")];
+  let i = index + 1;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trim().endsWith("$$")) {
+      tex.push(line.replace(/\s?\$\$\s*$/, ""));
+      return { tex: tex.join("\n").trim(), nextIndex: i + 1 };
+    }
+    tex.push(line);
+    i += 1;
+  }
+  return { tex: tex.join("\n").trim(), nextIndex: i };
+}
+
+function renderDisplayMath(tex) {
+  return `<div class="math-display" style="font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-x: auto; margin: 1em 0; padding: 0.75em 1em; background: #f6f6f6; border-radius: 6px;"><code>${escapeHtml(
+    tex,
+  )}</code></div>`;
+}
+
+function renderCodeBlock(code, language) {
+  const languageClass = language ? ` class="language-${escapeAttribute(language)}"` : "";
+  return `<pre style="overflow-x: auto; margin: 1em 0; padding: 0.85em 1em; background: #f6f6f6; border-radius: 6px;"><code${languageClass}>${escapeHtml(
+    code,
+  )}</code></pre>`;
+}
+
+function isTableStart(lines, index) {
+  if (index + 1 >= lines.length) return false;
+  if (!lines[index].includes("|")) return false;
+  return isTableSeparator(lines[index + 1]);
+}
+
+function isTableSeparator(line) {
+  const cells = splitTableRow(line);
+  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, "")));
+}
+
+function renderTable(lines, index) {
+  const header = splitTableRow(lines[index]);
+  const separator = splitTableRow(lines[index + 1]);
+  const alignments = separator.map((cell) => {
+    const value = cell.replace(/\s+/g, "");
+    if (value.startsWith(":") && value.endsWith(":")) return "center";
+    if (value.endsWith(":")) return "right";
+    return "left";
+  });
+  const rows = [];
+  let i = index + 2;
+  while (i < lines.length && lines[i].includes("|") && lines[i].trim()) {
+    rows.push(splitTableRow(lines[i]));
+    i += 1;
+  }
+
+  const tableStyle = "border-collapse: collapse; width: 100%; margin: 1em 0;";
+  const thStyle = "border: 1px solid #d9d9d9; padding: 0.45em 0.6em; background: #f6f6f6;";
+  const tdStyle = "border: 1px solid #d9d9d9; padding: 0.45em 0.6em;";
+  const head = `<thead><tr>${header
+    .map((cell, cellIndex) => `<th style="${thStyle} text-align: ${alignments[cellIndex] || "left"};">${renderInline(cell)}</th>`)
+    .join("")}</tr></thead>`;
+  const body = `<tbody>${rows
+    .map(
+      (row) =>
+        `<tr>${header
+          .map(
+            (_, cellIndex) =>
+              `<td style="${tdStyle} text-align: ${alignments[cellIndex] || "left"};">${renderInline(row[cellIndex] || "")}</td>`,
+          )
+          .join("")}</tr>`,
+    )
+    .join("")}</tbody>`;
+  return { html: `<table style="${tableStyle}">${head}${body}</table>`, nextIndex: i };
+}
+
+function splitTableRow(line) {
+  let row = line.trim();
+  if (row.startsWith("|")) row = row.slice(1);
+  if (row.endsWith("|")) row = row.slice(0, -1);
+
+  const cells = [];
+  let current = "";
+  let escaped = false;
+  for (const char of row) {
+    if (char === "|" && !escaped) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+    escaped = char === "\\" && !escaped;
+    if (char !== "\\") escaped = false;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function renderInline(value) {
+  const tokens = [];
+  let source = value;
+  const stash = (html) => {
+    const token = `@@HTML_TOKEN_${tokens.length}@@`;
+    tokens.push([token, html]);
+    return token;
+  };
+
+  source = source.replace(/`([^`\n]+)`/g, (_, code) => stash(`<code>${escapeHtml(code)}</code>`));
+  source = source.replace(
+    /\$(?!\s)([^$\n]+?)(?<!\s)\$/g,
+    (_, tex) => stash(`<span class="math-inline" style="font-family: ui-monospace, SFMono-Regular, Consolas, monospace;">${escapeHtml(tex)}</span>`),
+  );
+  source = source.replace(
+    /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
+    (_, alt, src) => stash(`<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" />`),
+  );
+  source = source.replace(
+    /\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
+    (_, label, href) => stash(`<a href="${escapeAttribute(href)}">${renderInline(label)}</a>`),
+  );
+
+  let html = escapeHtml(source)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+
+  for (const [token, tokenHtml] of tokens) {
+    html = html.replaceAll(token, tokenHtml);
+  }
+  return html;
 }
 
 function escapeHtml(value) {
@@ -104,6 +330,18 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
+}
+
+function countWords(plain) {
+  const cjk = plain.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu) || [];
+  const latin = plain
+    .replace(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu, " ")
+    .match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g);
+  return cjk.length + (latin ? latin.length : 0);
 }
 
 function articleFiles(dir) {
@@ -148,7 +386,7 @@ for (const filePath of articleFiles(sourceDir)) {
         series: data.series,
         channels: data.channels || [],
         status: data.status || "draft",
-        words: plain.split(/\s+/).filter(Boolean).length,
+        words: countWords(plain),
         files: ["x-article.md", "x-teaser.txt", "wechat.html"],
       },
       null,
