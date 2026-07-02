@@ -38,6 +38,7 @@
           lighthouse = pkgs.mkShell {
             packages = [
               pkgs.google-lighthouse
+              pkgs.imagemagick
               pkgs.nodejs_22
               pkgs.zola
             ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
