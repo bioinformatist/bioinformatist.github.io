@@ -41,7 +41,7 @@ npm run wechat:push-draft
 
 `export:platform` writes X Article and WeChat copy/paste packages into `platform-exports/`. That directory is ignored because exports are reproducible from source. The exporter reads `src/content/platformArticles/<slug>/index.md` and copies image assets from the same article directory.
 
-Platform article drafts may use headings, lists, blockquotes, tables, fenced code blocks, images, inline math, and display math. X Article exports keep the source Markdown; WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX. For generated images, keep a same-basename Markdown sidecar with the prompt next to the image, for example `cover.png` and `cover.md`.
+Platform article drafts may use headings, lists, blockquotes, tables, fenced code blocks, images, inline math, and display math. X Article exports include the source Markdown plus `x-article.html`, a browser preview for copying rich text into X's editor. WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX. For generated images, keep a same-basename Markdown sidecar with the prompt next to the image, for example `cover.png` and `cover.md`.
 
 `wechat:push-draft` is intentionally dry-run only until the real Official Account permissions and secrets are verified.
 

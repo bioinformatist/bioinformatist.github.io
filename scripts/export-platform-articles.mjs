@@ -175,6 +175,214 @@ function markdownToWechatHtml(markdown) {
   return html.join("\n");
 }
 
+function markdownImageReferences(markdown) {
+  return Array.from(markdown.matchAll(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g)).map((match) => ({
+    alt: match[1],
+    src: match[2],
+  }));
+}
+
+function renderXArticlePreview({ title, bodyHtml, plain, imageReferences }) {
+  const articleHtml = `<h1>${escapeHtml(title)}</h1>\n${bodyHtml}`;
+  const imageList =
+    imageReferences.length > 0
+      ? `<ol>${imageReferences
+          .map((image) => `<li><code>${escapeHtml(image.src)}</code>${image.alt ? `：${escapeHtml(image.alt)}` : ""}</li>`)
+          .join("")}</ol>`
+      : "<p>没有本地图片引用。</p>";
+
+  return `<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(title)} - X Article 预览</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1ec;
+      --paper: #fffdf8;
+      --ink: #171717;
+      --muted: #666;
+      --line: #d8d1c7;
+      --accent: #f2994a;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "PingFang SC", sans-serif;
+      line-height: 1.72;
+    }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.8rem max(1rem, calc((100vw - 820px) / 2));
+      background: rgba(244, 241, 236, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+    button {
+      border: 1px solid #1f1f1f;
+      border-radius: 6px;
+      background: #1f1f1f;
+      color: white;
+      cursor: pointer;
+      font: inherit;
+      padding: 0.45rem 0.8rem;
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--ink);
+    }
+    .status {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .note, .assets, article {
+      box-sizing: border-box;
+      width: min(820px, calc(100vw - 2rem));
+      margin: 1rem auto;
+    }
+    .note, .assets {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+    article {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: clamp(1rem, 3vw, 2.5rem);
+    }
+    h1, h2, h3 {
+      line-height: 1.28;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-top: 0;
+    }
+    h2 {
+      margin-top: 2.2rem;
+      border-left: 5px solid var(--accent);
+      padding-left: 0.7rem;
+    }
+    a {
+      color: #1464b4;
+    }
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 1rem auto;
+      border-radius: 8px;
+    }
+    figcaption {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    table {
+      border-collapse: collapse;
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 0.45rem 0.6rem;
+    }
+    th {
+      background: #f6f2ea;
+    }
+    pre, code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    pre, .math-display {
+      overflow-x: auto;
+      background: #f6f2ea;
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+    }
+    blockquote {
+      border-left: 4px solid var(--line);
+      color: #444;
+      margin-left: 0;
+      padding-left: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button type="button" id="selectArticle">选择正文</button>
+    <button type="button" class="secondary" id="copyHtml">复制富文本</button>
+    <button type="button" class="secondary" id="copyText">复制纯文本</button>
+    <span class="status" id="status">粘贴到 X Article 后，手动核对图片、表格和公式。</span>
+  </div>
+  <p class="note">X Article 是富文本编辑器。如果浏览器拦截剪贴板权限，点击 <strong>选择正文</strong> 后手动复制，再粘贴到 X。图片通常仍需要按下面的顺序手动上传。</p>
+  <section class="assets">
+    <strong>图片顺序：</strong>
+    ${imageList}
+  </section>
+  <article id="article" contenteditable="true">
+${articleHtml}
+  </article>
+  <script>
+    const article = document.getElementById("article");
+    const status = document.getElementById("status");
+    const plainText = ${JSON.stringify(`${title}\n\n${plain}`)};
+
+    function selectArticle() {
+      const range = document.createRange();
+      range.selectNodeContents(article);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      status.textContent = "正文已选中。按 Ctrl/Cmd+C 复制，再粘贴到 X。";
+    }
+
+    async function copyHtml() {
+      const html = article.innerHTML;
+      try {
+        if (window.ClipboardItem) {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "text/html": new Blob([html], { type: "text/html" }),
+              "text/plain": new Blob([article.innerText], { type: "text/plain" }),
+            }),
+          ]);
+        } else {
+          await navigator.clipboard.writeText(article.innerText);
+        }
+        status.textContent = "已复制。粘贴到 X 后核对格式。";
+      } catch {
+        selectArticle();
+      }
+    }
+
+    async function copyText() {
+      try {
+        await navigator.clipboard.writeText(plainText);
+        status.textContent = "纯文本已复制。";
+      } catch {
+        status.textContent = "剪贴板被拦截。请选择正文后手动复制。";
+      }
+    }
+
+    document.getElementById("selectArticle").addEventListener("click", selectArticle);
+    document.getElementById("copyHtml").addEventListener("click", copyHtml);
+    document.getElementById("copyText").addEventListener("click", copyText);
+  </script>
+</body>
+</html>
+`;
+}
+
 function startsBlock(lines, index) {
   const line = lines[index] || "";
   return (
@@ -420,14 +628,22 @@ for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
   const plain = markdownToPlainText(body);
   const xArticle = `# ${title}\n\n${body}\n`;
   const xTeaser = `${title}\n\n${plain.split(/\n\s*\n/)[0] ?? ""}`;
+  const articleHtml = markdownToWechatHtml(body);
+  const xArticleHtml = renderXArticlePreview({
+    title,
+    bodyHtml: articleHtml,
+    plain,
+    imageReferences: markdownImageReferences(body),
+  });
   const wechatHtml = [
     `<!-- title: ${escapeHtml(title)} -->`,
     `<!-- series: ${escapeHtml(data.series || "")} -->`,
-    markdownToWechatHtml(body),
+    articleHtml,
     "",
   ].join("\n");
 
   writeFileSync(path.join(articleDir, "x-article.md"), xArticle);
+  writeFileSync(path.join(articleDir, "x-article.html"), xArticleHtml);
   writeFileSync(path.join(articleDir, "x-teaser.txt"), xTeaser.trim() + "\n");
   writeFileSync(path.join(articleDir, "wechat.html"), wechatHtml);
   const assetFiles = copyArticleAssets(assetDir, articleDir);
@@ -442,7 +658,7 @@ for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
         channels: data.channels || [],
         status: data.status || "draft",
         words: countWords(plain),
-        files: ["x-article.md", "x-teaser.txt", "wechat.html", ...assetFiles],
+        files: ["x-article.md", "x-article.html", "x-teaser.txt", "wechat.html", ...assetFiles],
       },
       null,
       2,
