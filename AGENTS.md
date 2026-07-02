@@ -20,3 +20,10 @@
 - Use `nix develop -c npm run lint:actions` after editing GitHub Actions workflows.
 - CI uses `lycheeverse/lychee-action` against generated `dist/**/*.html`: pull requests pass `--offline` for internal links; pushes to `main`, weekly schedules, and manual runs also check external links.
 - Do not add `lychee` to the Nix devShell until the pinned nixpkgs revision has a binary-cache hit for it.
+
+## Platform Articles
+
+- Keep X Article and WeChat long-form sources under `src/content/platformArticles/<slug>/index.md`.
+- Put article-local images and other source assets in the same `<slug>/` directory or its subdirectories.
+- For every generated image, keep a same-basename Markdown sidecar with the prompt and generation notes next to the image, for example `cover.png` and `cover.md`.
+- Platform article sources are not rendered into the public Zola site; use `nix develop -c npm run export:platform` to generate copy/paste packages.

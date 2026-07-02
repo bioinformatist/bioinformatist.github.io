@@ -7,7 +7,7 @@ Zola + tabi GitHub Pages site for the personal homepage, public resume, projects
 - `content/blog`: public posts. Migrated articles from older site shells live here as normal Zola posts.
 - `content/projects`: public project entries, including the investment education series explanation page.
 - `content/resume`: public Chinese and English resume sections.
-- `src/content/platformArticles`: source articles for X Article and WeChat Official Account distribution. They are not published into the public site.
+- `src/content/platformArticles`: source articles for X Article and WeChat Official Account distribution. They are organized as `src/content/platformArticles/<slug>/index.md` with article-local assets beside the source, and are not published into the public site.
 - `static/legacy-assets`: copied assets referenced by migrated legacy posts.
 
 ## Commands
@@ -39,9 +39,9 @@ npm run wechat:push-draft
 
 `social-card` regenerates `static/img/social-card-home.png`, the 1200×630 Open Graph/Twitter sharing card used by `social_media_card` in `config.toml`.
 
-`export:platform` writes X Article and WeChat copy/paste packages into `platform-exports/`. That directory is ignored because exports are reproducible from source.
+`export:platform` writes X Article and WeChat copy/paste packages into `platform-exports/`. That directory is ignored because exports are reproducible from source. The exporter reads `src/content/platformArticles/<slug>/index.md` and copies image assets from the same article directory.
 
-Platform article drafts may use headings, lists, blockquotes, tables, fenced code blocks, images, inline math, and display math. X Article exports keep the source Markdown; WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX.
+Platform article drafts may use headings, lists, blockquotes, tables, fenced code blocks, images, inline math, and display math. X Article exports keep the source Markdown; WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX. For generated images, keep a same-basename Markdown sidecar with the prompt next to the image, for example `cover.png` and `cover.md`.
 
 `wechat:push-draft` is intentionally dry-run only until the real Official Account permissions and secrets are verified.
 

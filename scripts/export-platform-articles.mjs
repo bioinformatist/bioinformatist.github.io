@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
@@ -344,19 +344,73 @@ function countWords(plain) {
   return cjk.length + (latin ? latin.length : 0);
 }
 
-function articleFiles(dir) {
+function articleEntries(dir) {
   if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((file) => !file.startsWith("_") && (file.endsWith(".md") || file.endsWith(".mdx")))
-    .map((file) => path.join(dir, file));
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => !entry.name.startsWith("_"))
+    .flatMap((entry) => {
+      const entryPath = path.join(dir, entry.name);
+      if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".mdx"))) {
+        return [
+          {
+            filePath: entryPath,
+            slug: entry.name.replace(/\.(md|mdx)$/i, ""),
+            assetDir: null,
+          },
+        ];
+      }
+      if (!entry.isDirectory()) return [];
+
+      for (const indexName of ["index.md", "index.mdx"]) {
+        const indexPath = path.join(entryPath, indexName);
+        if (existsSync(indexPath)) {
+          return [
+            {
+              filePath: indexPath,
+              slug: entry.name,
+              assetDir: entryPath,
+            },
+          ];
+        }
+      }
+      return [];
+    })
+    .sort((left, right) => left.slug.localeCompare(right.slug));
+}
+
+function copyArticleAssets(articleDir, outputArticleDir) {
+  if (!articleDir) return [];
+
+  const copied = [];
+  const imageExtensions = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
+
+  function copyImages(sourceDir, relativeDir = "") {
+    for (const entry of readdirSync(sourceDir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const sourcePath = path.join(sourceDir, entry.name);
+      const relativePath = path.join(relativeDir, entry.name);
+      if (entry.isDirectory()) {
+        copyImages(sourcePath, relativePath);
+        continue;
+      }
+      if (!entry.isFile() || !imageExtensions.has(path.extname(entry.name).toLowerCase())) continue;
+
+      const outputPath = path.join(outputArticleDir, relativePath);
+      ensureDir(path.dirname(outputPath));
+      copyFileSync(sourcePath, outputPath);
+      copied.push(relativePath);
+    }
+  }
+
+  copyImages(articleDir);
+  return copied.sort();
 }
 
 rmSync(outputDir, { recursive: true, force: true });
 ensureDir(outputDir);
 
 const manifest = [];
-for (const filePath of articleFiles(sourceDir)) {
-  const slug = path.basename(filePath).replace(/\.(md|mdx)$/i, "");
+for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
   const { raw, body } = splitFrontmatter(readFileSync(filePath, "utf8"));
   const data = parseYaml(raw);
   const articleDir = path.join(outputDir, slug);
@@ -376,6 +430,7 @@ for (const filePath of articleFiles(sourceDir)) {
   writeFileSync(path.join(articleDir, "x-article.md"), xArticle);
   writeFileSync(path.join(articleDir, "x-teaser.txt"), xTeaser.trim() + "\n");
   writeFileSync(path.join(articleDir, "wechat.html"), wechatHtml);
+  const assetFiles = copyArticleAssets(assetDir, articleDir);
   writeFileSync(
     path.join(articleDir, "manifest.json"),
     JSON.stringify(
@@ -387,7 +442,7 @@ for (const filePath of articleFiles(sourceDir)) {
         channels: data.channels || [],
         status: data.status || "draft",
         words: countWords(plain),
-        files: ["x-article.md", "x-teaser.txt", "wechat.html"],
+        files: ["x-article.md", "x-teaser.txt", "wechat.html", ...assetFiles],
       },
       null,
       2,
