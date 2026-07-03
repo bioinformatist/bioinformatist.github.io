@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   site:
     name: Build and links
@@ -26,6 +30,7 @@ jobs:
       - uses: cachix/install-nix-action@v31
       - run: nix develop -c npm run build
       - name: Check internal links
+        if: github.event_name == 'pull_request'
         uses: lycheeverse/lychee-action@v2.8.0
         with:
           args: >-
