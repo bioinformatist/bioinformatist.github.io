@@ -27,3 +27,9 @@
 - Put article-local images and other source assets in the same `<slug>/` directory or its subdirectories.
 - For every generated image, keep a same-basename Markdown sidecar with the prompt and generation notes next to the image, for example `cover.png` and `cover.md`.
 - Platform article sources are not rendered into the public Zola site; use `nix develop -c npm run export:platform` to generate copy/paste packages.
+- X Article title and body are separate fields. The export preview must keep them separate and must not include the title in the body selection area.
+- X Article does not preserve local images, display math, Markdown tables, or fenced code blocks when pasting the full body. Keep placeholders in the body preview and provide an insertion checklist with image previews, LaTeX source, Markdown table source with row/column counts, and code snippets.
+- Do not use inline math in platform articles. Use plain text in prose, or promote important formulas to display math blocks.
+- For X Article covers, prefer a 5:2 image such as 1600x640 and set `cover: "<image-file>"` in frontmatter.
+- Before platform-article handoff, run `nix develop -c npm run export:platform`, `nix develop -c npm run build`, and `git diff --check`.
+- When a platform article is ready for publication review, start a LAN preview with `nix develop -c npm run preview:platform -- <slug>` and report the URL.

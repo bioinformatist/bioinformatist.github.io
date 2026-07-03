@@ -5,6 +5,11 @@ const root = process.cwd();
 const sourceDir = path.join(root, "src/content/platformArticles");
 const outputDir = path.join(root, "platform-exports");
 
+const disclaimers = {
+  "investment-education":
+    "风险提示：本文仅用于投资教育和交易逻辑讨论，不构成任何证券、期权、基金、加密资产或其他金融产品的投资建议、买卖推荐或收益承诺。文中涉及的标的、策略和交易案例仅用于说明风险结构与思考框架，不代表适合任何特定读者。市场有风险，交易可能导致本金损失；请基于自身财务状况、风险承受能力和独立判断作出决策，必要时咨询具备相应资质的专业人士。",
+};
+
 function ensureDir(dir) {
   mkdirSync(dir, { recursive: true });
 }
@@ -60,14 +65,63 @@ function markdownToPlainText(markdown) {
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/^\s*\|?[-: ]+\|[-: |]+\|?\s*$/gm, "")
-    .replace(/[*_`>|]/g, "")
+    .replace(/[*_`>|~]/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-function markdownToWechatHtml(markdown) {
+function appendDisclaimer(markdown, key) {
+  if (!key) return markdown.trim();
+  const disclaimer = disclaimers[key];
+  if (!disclaimer) throw new Error(`Unknown disclaimer: ${key}`);
+  return `${markdown.trim()}\n\n---\n\n*${disclaimer}*`;
+}
+
+function assertNoInlineMath(markdown, filePath) {
+  const issues = [];
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  let inFence = false;
+  let fenceMarker = "";
+  let inDisplayMath = false;
+
+  lines.forEach((line, index) => {
+    const fence = line.match(/^(`{3,}|~{3,})/);
+    if (fence && !inFence) {
+      inFence = true;
+      fenceMarker = fence[1][0];
+      return;
+    }
+    if (inFence) {
+      if (new RegExp(`^${fenceMarker}{3,}\\s*$`).test(line)) {
+        inFence = false;
+        fenceMarker = "";
+      }
+      return;
+    }
+
+    if (line.trim().startsWith("$$") || inDisplayMath) {
+      if (!line.trim().match(/^\$\$.*\$\$$/) && line.trim().startsWith("$$")) {
+        inDisplayMath = true;
+      } else if (inDisplayMath && line.trim().endsWith("$$")) {
+        inDisplayMath = false;
+      }
+      return;
+    }
+
+    if (/\$(?!\$|\s)([^$\n]+?)(?<!\s)\$(?!\$)/.test(line)) {
+      issues.push(`${filePath}:${index + 1}: inline math is not supported in platform exports`);
+    }
+  });
+
+  if (issues.length > 0) {
+    throw new Error(`${issues.join("\n")}\nUse plain text in prose, or promote important formulas to display math blocks.`);
+  }
+}
+
+function markdownToWechatHtml(markdown, options = {}) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const html = [];
+  const counts = { image: 0, formula: 0, table: 0, code: 0 };
   let i = 0;
 
   while (i < lines.length) {
@@ -88,20 +142,27 @@ function markdownToWechatHtml(markdown) {
         i += 1;
       }
       if (i < lines.length) i += 1;
-      html.push(renderCodeBlock(code.join("\n"), language));
+      counts.code += 1;
+      html.push(
+        options.renderCodeBlock
+          ? options.renderCodeBlock(code.join("\n"), language, counts.code)
+          : renderCodeBlock(code.join("\n"), language),
+      );
       continue;
     }
 
     if (line.trim().startsWith("$$")) {
       const { tex, nextIndex } = readDisplayMath(lines, i);
-      html.push(renderDisplayMath(tex));
+      counts.formula += 1;
+      html.push(options.renderDisplayMath ? options.renderDisplayMath(tex, counts.formula) : renderDisplayMath(tex));
       i = nextIndex;
       continue;
     }
 
     if (isTableStart(lines, i)) {
-      const { html: tableHtml, nextIndex } = renderTable(lines, i);
-      html.push(tableHtml);
+      const { html: tableHtml, markdown: tableMarkdown, nextIndex, rowCount, columnCount } = renderTable(lines, i);
+      counts.table += 1;
+      html.push(options.renderTable ? options.renderTable(tableMarkdown, counts.table, { rowCount, columnCount }) : tableHtml);
       i = nextIndex;
       continue;
     }
@@ -155,10 +216,13 @@ function markdownToWechatHtml(markdown) {
     if (image) {
       const [, alt, src, title] = image;
       const caption = title || alt;
+      counts.image += 1;
       html.push(
-        `<figure><img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" />${
-          caption ? `<figcaption>${renderInline(caption)}</figcaption>` : ""
-        }</figure>`,
+        options.renderImage
+          ? options.renderImage({ alt, src, title, caption, index: counts.image })
+          : `<figure><img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" />${
+              caption ? `<figcaption>${renderInline(caption)}</figcaption>` : ""
+            }</figure>`,
       );
       i += 1;
       continue;
@@ -175,21 +239,81 @@ function markdownToWechatHtml(markdown) {
   return html.join("\n");
 }
 
-function markdownImageReferences(markdown) {
-  return Array.from(markdown.matchAll(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g)).map((match) => ({
-    alt: match[1],
-    src: match[2],
-  }));
+function markdownInsertItems(markdown) {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const items = [];
+  const counts = { image: 0, formula: 0, table: 0, code: 0 };
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const fence = line.match(/^(`{3,}|~{3,})\s*([A-Za-z0-9_-]+)?\s*$/);
+    if (fence) {
+      const marker = fence[1][0];
+      const language = fence[2] || "";
+      const code = [];
+      i += 1;
+      while (i < lines.length && !new RegExp(`^${marker}{3,}\\s*$`).test(lines[i])) {
+        code.push(lines[i]);
+        i += 1;
+      }
+      if (i < lines.length) i += 1;
+      counts.code += 1;
+      items.push({ kind: "code", index: counts.code, language, content: code.join("\n") });
+      continue;
+    }
+
+    if (line.trim().startsWith("$$")) {
+      const { tex, nextIndex } = readDisplayMath(lines, i);
+      counts.formula += 1;
+      items.push({ kind: "formula", index: counts.formula, content: tex });
+      i = nextIndex;
+      continue;
+    }
+
+    if (isTableStart(lines, i)) {
+      const { markdown: tableMarkdown, nextIndex, rowCount, columnCount } = renderTable(lines, i);
+      counts.table += 1;
+      items.push({ kind: "table", index: counts.table, content: tableMarkdown, rowCount, columnCount });
+      i = nextIndex;
+      continue;
+    }
+
+    const image = line.trim().match(/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/);
+    if (image) {
+      counts.image += 1;
+      items.push({ kind: "image", index: counts.image, alt: image[1], src: image[2] });
+      i += 1;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  return items;
 }
 
-function renderXArticlePreview({ title, bodyHtml, plain, imageReferences }) {
-  const articleHtml = `<h1>${escapeHtml(title)}</h1>\n${bodyHtml}`;
-  const imageList =
-    imageReferences.length > 0
-      ? `<ol>${imageReferences
-          .map((image) => `<li><code>${escapeHtml(image.src)}</code>${image.alt ? `：${escapeHtml(image.alt)}` : ""}</li>`)
-          .join("")}</ol>`
-      : "<p>没有本地图片引用。</p>";
+function markdownToXArticleBodyHtml(markdown) {
+  return markdownToWechatHtml(markdown, {
+    renderCodeBlock: (_code, language, index) => {
+      const detail = language ? `用 X Article 的 Insert 功能插入 ${language} 代码块` : "用 X Article 的 Insert 功能插入代码块";
+      return renderXPlaceholder(`代码块 ${index}`, detail);
+    },
+    renderImage: ({ alt, index }) => renderXPlaceholder(`图片 ${index}`, alt || "右键复制图片后粘贴到 X"),
+    renderDisplayMath: (tex, index) => renderXPlaceholder(`公式 ${index}`, firstLine(tex)),
+    renderTable: (_tableMarkdown, index, { rowCount, columnCount }) =>
+      renderXPlaceholder(`表格 ${index}`, `${rowCount} 行 x ${columnCount} 列；用 X Article 的 Insert 功能插入 Markdown 表格`),
+  });
+}
+
+function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
+  const insertList = insertItems.length > 0 ? `<ol>${insertItems.map(renderInsertItem).join("")}</ol>` : "<p>没有需要单独插入的内容。</p>";
+  const coverHtml = cover
+    ? `<section class="cover-box">
+    <strong>封面图（5:2）</strong>
+    <img src="${escapeAttribute(cover)}" alt="${escapeAttribute(title)} cover" />
+  </section>`
+    : "";
 
   return `<!doctype html>
 <html lang="zh-Hans">
@@ -259,6 +383,47 @@ function renderXArticlePreview({ title, bodyHtml, plain, imageReferences }) {
       border-radius: 10px;
       padding: clamp(1rem, 3vw, 2.5rem);
     }
+    .title-box {
+      box-sizing: border-box;
+      width: min(820px, calc(100vw - 2rem));
+      margin: 1rem auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+    }
+    .title-box strong {
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
+    #titleText {
+      display: block;
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .cover-box {
+      box-sizing: border-box;
+      width: min(820px, calc(100vw - 2rem));
+      margin: 1rem auto;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .cover-box strong {
+      display: block;
+      margin-bottom: 0.45rem;
+    }
+    .cover-box img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 5 / 2;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin: 0;
+    }
     h1, h2, h3 {
       line-height: 1.28;
     }
@@ -315,72 +480,114 @@ function renderXArticlePreview({ title, bodyHtml, plain, imageReferences }) {
       margin-left: 0;
       padding-left: 1rem;
     }
+    .placeholder {
+      border: 1px dashed var(--accent);
+      border-radius: 6px;
+      color: #7a4a00;
+      background: #fff7e8;
+      padding: 0.65rem 0.8rem;
+    }
+    .insert-list li {
+      margin: 1rem 0 1.4rem;
+    }
+    .insert-list img {
+      max-height: 360px;
+      border: 1px solid var(--line);
+    }
+    textarea {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 7rem;
+      margin-top: 0.4rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.7rem;
+      background: #fffdf8;
+      color: var(--ink);
+      font: 0.92rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
   </style>
 </head>
 <body>
   <div class="toolbar">
+    <button type="button" id="selectTitle">选择标题</button>
     <button type="button" id="selectArticle">选择正文</button>
-    <button type="button" class="secondary" id="copyHtml">复制富文本</button>
-    <button type="button" class="secondary" id="copyText">复制纯文本</button>
-    <span class="status" id="status">粘贴到 X Article 后，手动核对图片、表格和公式。</span>
+    <span class="status" id="status">先复制标题，再复制正文，然后按清单补图片、公式和表格。</span>
   </div>
-  <p class="note">X Article 是富文本编辑器。如果浏览器拦截剪贴板权限，点击 <strong>选择正文</strong> 后手动复制，再粘贴到 X。图片通常仍需要按下面的顺序手动上传。</p>
-  <section class="assets">
-    <strong>图片顺序：</strong>
-    ${imageList}
+  <p class="note">X Article 的标题和正文是两个输入区。标题单独复制；正文区不包含标题，并把图片、LaTeX 公式和 Markdown 表格替换成占位符；粘贴正文后，按清单逐项在 X 里插入或右键复制图片。</p>
+  <section class="title-box">
+    <strong>标题</strong>
+    <span id="titleText">${escapeHtml(title)}</span>
   </section>
+  ${coverHtml}
   <article id="article" contenteditable="true">
-${articleHtml}
+${bodyHtml}
   </article>
+  <section class="assets insert-list">
+    <strong>插入清单：</strong>
+    ${insertList}
+  </section>
   <script>
     const article = document.getElementById("article");
+    const titleText = document.getElementById("titleText");
     const status = document.getElementById("status");
-    const plainText = ${JSON.stringify(`${title}\n\n${plain}`)};
 
-    function selectArticle() {
+    function selectNodeContents(node, message) {
       const range = document.createRange();
-      range.selectNodeContents(article);
+      range.selectNodeContents(node);
       const selection = window.getSelection();
       selection.removeAllRanges();
       selection.addRange(range);
-      status.textContent = "正文已选中。按 Ctrl/Cmd+C 复制，再粘贴到 X。";
+      status.textContent = message;
     }
 
-    async function copyHtml() {
-      const html = article.innerHTML;
-      try {
-        if (window.ClipboardItem) {
-          await navigator.clipboard.write([
-            new ClipboardItem({
-              "text/html": new Blob([html], { type: "text/html" }),
-              "text/plain": new Blob([article.innerText], { type: "text/plain" }),
-            }),
-          ]);
-        } else {
-          await navigator.clipboard.writeText(article.innerText);
-        }
-        status.textContent = "已复制。粘贴到 X 后核对格式。";
-      } catch {
-        selectArticle();
-      }
+    function selectTitle() {
+      selectNodeContents(titleText, "标题已选中。按 Ctrl/Cmd+C 复制，再粘贴到 X 的标题输入框。");
     }
 
-    async function copyText() {
-      try {
-        await navigator.clipboard.writeText(plainText);
-        status.textContent = "纯文本已复制。";
-      } catch {
-        status.textContent = "剪贴板被拦截。请选择正文后手动复制。";
-      }
+    function selectArticle() {
+      selectNodeContents(article, "正文已选中。按 Ctrl/Cmd+C 复制，再粘贴到 X 的正文编辑器。");
     }
 
+    document.getElementById("selectTitle").addEventListener("click", selectTitle);
     document.getElementById("selectArticle").addEventListener("click", selectArticle);
-    document.getElementById("copyHtml").addEventListener("click", copyHtml);
-    document.getElementById("copyText").addEventListener("click", copyText);
+    document.querySelectorAll("textarea").forEach((textarea) => {
+      textarea.addEventListener("focus", () => textarea.select());
+      textarea.addEventListener("click", () => textarea.select());
+    });
   </script>
 </body>
 </html>
 `;
+}
+
+function renderXPlaceholder(label, detail) {
+  return `<p class="placeholder">【${escapeHtml(label)}${detail ? `：${escapeHtml(detail)}` : ""}】</p>`;
+}
+
+function renderInsertItem(item) {
+  if (item.kind === "image") {
+    return `<li><strong>图片 ${item.index}</strong>${item.alt ? `：${escapeHtml(item.alt)}` : ""}<br /><code>${escapeHtml(
+      item.src,
+    )}</code><img src="${escapeAttribute(item.src)}" alt="${escapeAttribute(item.alt)}" /></li>`;
+  }
+  if (item.kind === "formula") {
+    return `<li><strong>公式 ${item.index}</strong><textarea readonly spellcheck="false">${escapeHtml(item.content)}</textarea></li>`;
+  }
+  if (item.kind === "table") {
+    return `<li><strong>表格 ${item.index}（${item.rowCount} 行 x ${item.columnCount} 列）</strong><textarea readonly spellcheck="false">${escapeHtml(
+      item.content,
+    )}</textarea></li>`;
+  }
+  if (item.kind === "code") {
+    const language = item.language ? `（${escapeHtml(item.language)}）` : "";
+    return `<li><strong>代码块 ${item.index}${language}</strong><textarea readonly spellcheck="false">${escapeHtml(item.content)}</textarea></li>`;
+  }
+  return "";
+}
+
+function firstLine(value) {
+  return value.split("\n").find((line) => line.trim())?.trim() || "";
 }
 
 function startsBlock(lines, index) {
@@ -456,6 +663,7 @@ function renderTable(lines, index) {
     rows.push(splitTableRow(lines[i]));
     i += 1;
   }
+  const markdown = lines.slice(index, i).join("\n");
 
   const tableStyle = "border-collapse: collapse; width: 100%; margin: 1em 0;";
   const thStyle = "border: 1px solid #d9d9d9; padding: 0.45em 0.6em; background: #f6f6f6;";
@@ -474,7 +682,13 @@ function renderTable(lines, index) {
           .join("")}</tr>`,
     )
     .join("")}</tbody>`;
-  return { html: `<table style="${tableStyle}">${head}${body}</table>`, nextIndex: i };
+  return {
+    html: `<table style="${tableStyle}">${head}${body}</table>`,
+    markdown,
+    nextIndex: i,
+    rowCount: rows.length + 1,
+    columnCount: header.length,
+  };
 }
 
 function splitTableRow(line) {
@@ -510,10 +724,6 @@ function renderInline(value) {
 
   source = source.replace(/`([^`\n]+)`/g, (_, code) => stash(`<code>${escapeHtml(code)}</code>`));
   source = source.replace(
-    /\$(?!\s)([^$\n]+?)(?<!\s)\$/g,
-    (_, tex) => stash(`<span class="math-inline" style="font-family: ui-monospace, SFMono-Regular, Consolas, monospace;">${escapeHtml(tex)}</span>`),
-  );
-  source = source.replace(
     /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
     (_, alt, src) => stash(`<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" />`),
   );
@@ -524,7 +734,8 @@ function renderInline(value) {
 
   let html = escapeHtml(source)
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>");
 
   for (const [token, tokenHtml] of tokens) {
     html = html.replaceAll(token, tokenHtml);
@@ -621,19 +832,24 @@ const manifest = [];
 for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
   const { raw, body } = splitFrontmatter(readFileSync(filePath, "utf8"));
   const data = parseYaml(raw);
+  assertNoInlineMath(body, path.relative(root, filePath));
   const articleDir = path.join(outputDir, slug);
   ensureDir(articleDir);
 
   const title = data.title || slug;
-  const plain = markdownToPlainText(body);
-  const xArticle = `# ${title}\n\n${body}\n`;
-  const xTeaser = `${title}\n\n${plain.split(/\n\s*\n/)[0] ?? ""}`;
-  const articleHtml = markdownToWechatHtml(body);
+  const cover = data.cover || null;
+  const publishedBody = appendDisclaimer(body, data.disclaimer);
+  const plain = markdownToPlainText(publishedBody);
+  const sourcePlain = markdownToPlainText(body);
+  const xArticle = `# ${title}\n\n${publishedBody}\n`;
+  const xTeaser = `${title}\n\n${sourcePlain.split(/\n\s*\n/)[0] ?? ""}`;
+  const articleHtml = markdownToWechatHtml(publishedBody);
+  const xArticleBodyHtml = markdownToXArticleBodyHtml(publishedBody);
   const xArticleHtml = renderXArticlePreview({
     title,
-    bodyHtml: articleHtml,
-    plain,
-    imageReferences: markdownImageReferences(body),
+    bodyHtml: xArticleBodyHtml,
+    cover,
+    insertItems: markdownInsertItems(publishedBody),
   });
   const wechatHtml = [
     `<!-- title: ${escapeHtml(title)} -->`,
@@ -656,6 +872,8 @@ for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
         date: data.date,
         series: data.series,
         channels: data.channels || [],
+        cover,
+        disclaimer: data.disclaimer || null,
         status: data.status || "draft",
         words: countWords(plain),
         files: ["x-article.md", "x-article.html", "x-teaser.txt", "wechat.html", ...assetFiles],

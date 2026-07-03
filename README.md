@@ -30,6 +30,7 @@ npm run social-card
 npm run lint:actions
 npm run audit:lighthouse
 npm run export:platform
+npm run preview:platform -- grid-strategy-expected-value
 npm run wechat:push-draft
 ```
 
@@ -41,7 +42,13 @@ npm run wechat:push-draft
 
 `export:platform` writes X Article and WeChat copy/paste packages into `platform-exports/`. That directory is ignored because exports are reproducible from source. The exporter reads `src/content/platformArticles/<slug>/index.md` and copies image assets from the same article directory.
 
-Platform article drafts may use headings, lists, blockquotes, tables, fenced code blocks, images, inline math, and display math. X Article exports include the source Markdown plus `x-article.html`, a browser preview for copying rich text into X's editor. WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX. For generated images, keep a same-basename Markdown sidecar with the prompt next to the image, for example `cover.png` and `cover.md`.
+Platform article drafts may use headings, bold, italics, strikethrough, lists, blockquotes, tables, fenced code blocks, images, and display math. Avoid inline math: X Article does not support it, and GitHub Markdown previews can expose raw `$...$` text. Use plain text in prose, or promote important formulas to `$$...$$` display blocks. X Article exports include the source Markdown plus `x-article.html`, a browser assembly page with separate title and rich-text body areas, plus image, LaTeX, table, and code snippets for manual insertion. WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX. For generated images, keep a same-basename Markdown sidecar with the prompt next to the image, for example `cover.png` and `cover.md`.
+
+Set `disclaimer: "investment-education"` in platform article frontmatter to append the shared investment-education risk disclaimer to X Article and WeChat exports.
+
+Set `cover: "<image-file>"` in platform article frontmatter for the X Article cover image. Prefer 5:2 images, for example 1600x640.
+
+`preview:platform` regenerates platform exports, serves one article export directory on `0.0.0.0`, and prints a LAN URL. If there is only one exported article, the slug argument can be omitted.
 
 `wechat:push-draft` is intentionally dry-run only until the real Official Account permissions and secrets are verified.
 
