@@ -27,6 +27,9 @@
 - Put article-local images and other source assets in the same `<slug>/` directory or its subdirectories.
 - For every generated image, keep a same-basename Markdown sidecar with the prompt and generation notes next to the image, for example `cover.png` and `cover.md`.
 - Platform article sources are not rendered into the public Zola site; use `nix develop -c npm run export:platform` to generate copy/paste packages.
+- WeChat Official Account publishing is local-only: credentials live in ignored `.env.local`, and `nix develop -c npm run wechat:draft -- <slug>` pushes directly to the WeChat draft box for manual preview and publishing. This machine has no fixed public IPv4; if WeChat returns `40164` or `not in whitelist`, stop and ask the user to add the returned outbound IP to the WeChat API IP whitelist. Do not add a GitHub Actions path for this workflow unless explicitly requested.
+- For every WeChat publication, try the official `/draft/add` API route first with `nix develop -c npm run wechat:draft -- <slug> --dry-run`. If compact API HTML still exceeds the 20,000-character content limit, stop and use an editor-based workflow such as doocs/md; do not keep stripping meaningful article structure just to force the API path.
+- Do not implement the editor-based WeChat fallback until a real article is blocked by the official API route.
 - X Article title and body are separate fields. The export preview must keep them separate and must not include the title in the body selection area.
 - X Article does not preserve local images, display math, Markdown tables, or fenced code blocks when pasting the full body. Keep placeholders in the body preview and provide an insertion checklist with image previews, LaTeX source, Markdown table source with row/column counts, and code snippets.
 - Do not use inline math in platform articles. Use plain text in prose, or promote important formulas to display math blocks.

@@ -3,7 +3,10 @@ title: "为什么你的网格策略一直亏钱？"
 date: 2026-07-02
 series: "investment-education"
 channels: ["x-article", "wechat"]
-status: "draft"
+status: "published"
+published_date: "2026-07-03"
+x_url: "https://x.com/ysun1993/status/2072861906617213133?s=20"
+wechat_url: "https://mp.weixin.qq.com/s/bsCz3lHxruII4tBo13QJqQ"
 disclaimer: "investment-education"
 cover: "x-article-cover.png"
 description: "用数学期望拆解网格策略：它不是圣杯，也不是纯粹做多波动率，而是一个把趋势风险藏进库存的交易规则。"

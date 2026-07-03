@@ -14,6 +14,10 @@
     "audit:lighthouse": "node scripts/audit-lighthouse.mjs",
     "export:platform": "node scripts/export-platform-articles.mjs",
     "preview:platform": "node scripts/serve-platform-export.mjs",
-    "wechat:push-draft": "node scripts/wechat-push-draft.mjs --dry-run"
+    "wechat:draft": "node scripts/wechat-push-draft.mjs",
+    "wechat:push-draft": "node scripts/wechat-push-draft.mjs"
+  },
+  "dependencies": {
+    "@mathjax/src": "4.1.2"
   }
 }

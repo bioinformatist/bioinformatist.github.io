@@ -4,5 +4,6 @@ public/
 .vercel/
 .netlify/
 npm-debug.log*
+.env.local
 platform-exports/
 .lighthouseci/

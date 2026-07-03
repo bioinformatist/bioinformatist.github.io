@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -10,8 +11,47 @@ const disclaimers = {
     "风险提示：本文仅用于投资教育和交易逻辑讨论，不构成任何证券、期权、基金、加密资产或其他金融产品的投资建议、买卖推荐或收益承诺。文中涉及的标的、策略和交易案例仅用于说明风险结构与思考框架，不代表适合任何特定读者。市场有风险，交易可能导致本金损失；请基于自身财务状况、风险承受能力和独立判断作出决策，必要时咨询具备相应资质的专业人士。",
 };
 
+const wechatStyles = {
+  article: "margin:0 6px;color:#333;font-size:15px;line-height:1.85;letter-spacing:.04em;",
+  paragraph: "",
+  h1: "display:table;margin:2.2em auto 1.2em;padding:0 .4em .2em;border-bottom:2px solid #f2994a;color:#222;font-size:20px;line-height:1.35;font-weight:700;text-align:center;",
+  h2: "display:table;margin:2.4em auto 1.2em;padding:.12em .55em;background:#f2994a;color:#fff;font-size:18px;line-height:1.45;font-weight:700;text-align:center;",
+  h3: "margin:2em 0 .9em;padding-left:.65em;border-left:4px solid #f2994a;color:#222;font-size:16px;line-height:1.5;font-weight:700;",
+  quote: "margin:1.2em 0;padding:.75em 0 .75em 1em;border-left:4px solid #ddd;color:#666;background:#fafafa;line-height:1.8;",
+  ul: "margin:.8em 0 1.1em;padding-left:1.6em;",
+  ol: "margin:.8em 0 1.1em;padding-left:1.6em;",
+  li: "margin:.35em 0;",
+  hr: "border:none;border-top:1px solid #e5e5e5;margin:1.6em 0;",
+  codeBlock:
+    "margin:1.1em 0;padding:.85em 1em;border-radius:6px;background:#f7f7f7;color:#333;font-size:14px;line-height:1.65;letter-spacing:0;overflow-x:auto;",
+  codeText: "font-family:Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;",
+  inlineCode:
+    "font-family:Menlo,Consolas,monospace;color:#d35400;background:#fff4e8;border-radius:4px;padding:.08em .28em;letter-spacing:0;",
+  figure: "margin:1.4em 0;text-align:center;",
+  image: "display:block;max-width:100%;height:auto;margin:0 auto;border-radius:4px;",
+  caption: "margin:.45em 0 0;color:#888;font-size:13px;line-height:1.55;text-align:center;",
+  formula: "margin:1.15em 0;text-align:center;",
+  tableWrap: "margin:1.2em 0;overflow-x:auto;",
+  table: "border-collapse:collapse;width:100%;font-size:14px;line-height:1.6;letter-spacing:0;",
+  th: "background:#fff4e8;font-weight:700;",
+  td: "",
+  strong: "color:#d35400",
+  em: "color:#666",
+  del: "color:#888",
+};
+
+let mathJaxReady = null;
+
 function ensureDir(dir) {
   mkdirSync(dir, { recursive: true });
+}
+
+function styleAttribute(style) {
+  return style ? ` style="${style}"` : "";
+}
+
+function wechatStyle(options, key) {
+  return options.style === "wechat" ? styleAttribute(wechatStyles[key]) : "";
 }
 
 function splitFrontmatter(text) {
@@ -160,7 +200,7 @@ function markdownToWechatHtml(markdown, options = {}) {
     }
 
     if (isTableStart(lines, i)) {
-      const { html: tableHtml, markdown: tableMarkdown, nextIndex, rowCount, columnCount } = renderTable(lines, i);
+      const { html: tableHtml, markdown: tableMarkdown, nextIndex, rowCount, columnCount } = renderTable(lines, i, options);
       counts.table += 1;
       html.push(options.renderTable ? options.renderTable(tableMarkdown, counts.table, { rowCount, columnCount }) : tableHtml);
       i = nextIndex;
@@ -170,7 +210,7 @@ function markdownToWechatHtml(markdown, options = {}) {
     const heading = line.match(/^(#{1,4})\s+(.+)$/);
     if (heading) {
       const level = Math.min(heading[1].length, 3);
-      html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+      html.push(`<h${level}${wechatStyle(options, `h${level}`)}>${renderInline(heading[2], options)}</h${level}>`);
       i += 1;
       continue;
     }
@@ -182,9 +222,7 @@ function markdownToWechatHtml(markdown, options = {}) {
         i += 1;
       }
       html.push(
-        `<blockquote style="border-left: 4px solid #d9d9d9; margin: 1em 0; padding: 0.5em 0 0.5em 1em; color: #555;">${quote
-          .map(renderInline)
-          .join("<br />")}</blockquote>`,
+        `<blockquote${wechatStyle(options, "quote")}>${quote.map((item) => renderInline(item, options)).join("<br/>")}</blockquote>`,
       );
       continue;
     }
@@ -202,12 +240,16 @@ function markdownToWechatHtml(markdown, options = {}) {
         i += 1;
       }
       const tag = orderedList ? "ol" : "ul";
-      html.push(`<${tag}>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</${tag}>`);
+      html.push(
+        `<${tag}${wechatStyle(options, tag)}>${items
+          .map((item) => `<li${wechatStyle(options, "li")}>${renderInline(item, options)}</li>`)
+          .join("")}</${tag}>`,
+      );
       continue;
     }
 
     if (/^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
-      html.push("<hr />");
+      html.push(`<hr${wechatStyle(options, "hr")} />`);
       i += 1;
       continue;
     }
@@ -220,8 +262,11 @@ function markdownToWechatHtml(markdown, options = {}) {
       html.push(
         options.renderImage
           ? options.renderImage({ alt, src, title, caption, index: counts.image })
-          : `<figure><img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" />${
-              caption ? `<figcaption>${renderInline(caption)}</figcaption>` : ""
+          : `<figure${wechatStyle(options, "figure")}><img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}"${wechatStyle(
+              options,
+              "image",
+            )} />${
+              caption ? `<figcaption${wechatStyle(options, "caption")}>${renderInline(caption, options)}</figcaption>` : ""
             }</figure>`,
       );
       i += 1;
@@ -233,10 +278,12 @@ function markdownToWechatHtml(markdown, options = {}) {
       paragraph.push(lines[i].trim());
       i += 1;
     }
-    html.push(`<p>${paragraph.map(renderInline).join("<br />")}</p>`);
+    const paragraphHtml = `<p${wechatStyle(options, "paragraph")}>${paragraph.map((item) => renderInline(item, options)).join("<br/>")}</p>`;
+    html.push(options.style === "wechat" ? `${paragraphHtml}<br/>` : paragraphHtml);
   }
 
-  return html.join("\n");
+  const content = html.join("\n");
+  return options.style === "wechat" ? `<section${wechatStyle(options, "article")}>\n${content}\n</section>` : content;
 }
 
 function markdownInsertItems(markdown) {
@@ -630,11 +677,80 @@ function renderDisplayMath(tex) {
   )}</code></div>`;
 }
 
+function renderWechatFormulaImage(tex, index, fileName) {
+  if (!fileName) return renderDisplayMath(tex);
+  return `<section${styleAttribute(wechatStyles.formula)}><img src="${escapeAttribute(fileName)}" alt="公式 ${index}"${styleAttribute(
+    wechatStyles.image,
+  )} /></section>`;
+}
+
+async function ensureMathJax() {
+  if (!mathJaxReady) {
+    mathJaxReady = (async () => {
+      global.MathJax = {
+        loader: {
+          paths: { mathjax: "@mathjax/src/bundle" },
+          load: ["adaptors/liteDOM"],
+          require: (file) => import(file),
+        },
+        output: { font: "mathjax-newcm" },
+      };
+      await import("@mathjax/src/bundle/tex-svg.js");
+      await MathJax.startup.promise;
+      return MathJax;
+    })();
+  }
+  return mathJaxReady;
+}
+
+async function texToSvg(tex) {
+  const mathJax = await ensureMathJax();
+  const node = await mathJax.tex2svgPromise(tex, {
+    display: true,
+    em: 16,
+    ex: 8,
+    containerWidth: 960,
+  });
+  const adaptor = mathJax.startup.adaptor;
+  return adaptor.serializeXML(adaptor.tags(node, "svg")[0]);
+}
+
+function runMagick(args, label) {
+  const result = spawnSync("magick", args, { cwd: root, encoding: "utf8" });
+  if (result.status !== 0) {
+    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+    throw new Error(`${label} failed.${detail ? `\n${detail}` : ""}`);
+  }
+}
+
+async function renderWechatFormulaAssets(formulaItems, outputArticleDir) {
+  const byIndex = new Map();
+  const files = [];
+  for (const item of formulaItems) {
+    const baseName = `wechat-formula-${item.index}`;
+    const svgFile = `${baseName}.svg`;
+    const pngFile = `${baseName}.png`;
+    const svgPath = path.join(outputArticleDir, svgFile);
+    const pngPath = path.join(outputArticleDir, pngFile);
+    writeFileSync(svgPath, await texToSvg(item.content));
+    runMagick(["-background", "none", "-density", "220", svgPath, "-trim", "-bordercolor", "none", "-border", "24x12", pngPath], `render ${pngFile}`);
+    rmSync(svgPath, { force: true });
+    byIndex.set(item.index, pngFile);
+    files.push(pngFile);
+  }
+  return { byIndex, files };
+}
+
+async function shutdownMathJax() {
+  if (!mathJaxReady) return;
+  const mathJax = await mathJaxReady;
+  if (typeof mathJax.done === "function") mathJax.done();
+}
+
 function renderCodeBlock(code, language) {
   const languageClass = language ? ` class="language-${escapeAttribute(language)}"` : "";
-  return `<pre style="overflow-x: auto; margin: 1em 0; padding: 0.85em 1em; background: #f6f6f6; border-radius: 6px;"><code${languageClass}>${escapeHtml(
-    code,
-  )}</code></pre>`;
+  const escapedCode = escapeHtml(code).replaceAll("\n", "<br/>");
+  return `<section${styleAttribute(wechatStyles.codeBlock)}><code${languageClass}${styleAttribute(wechatStyles.codeText)}>${escapedCode}</code></section>`;
 }
 
 function isTableStart(lines, index) {
@@ -648,7 +764,7 @@ function isTableSeparator(line) {
   return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, "")));
 }
 
-function renderTable(lines, index) {
+function renderTable(lines, index, options = {}) {
   const header = splitTableRow(lines[index]);
   const separator = splitTableRow(lines[index + 1]);
   const alignments = separator.map((cell) => {
@@ -665,11 +781,14 @@ function renderTable(lines, index) {
   }
   const markdown = lines.slice(index, i).join("\n");
 
-  const tableStyle = "border-collapse: collapse; width: 100%; margin: 1em 0;";
-  const thStyle = "border: 1px solid #d9d9d9; padding: 0.45em 0.6em; background: #f6f6f6;";
-  const tdStyle = "border: 1px solid #d9d9d9; padding: 0.45em 0.6em;";
+  const tableStyle = options.style === "wechat" ? wechatStyles.table : "border-collapse: collapse; width: 100%; margin: 1em 0;";
+  const thStyle = options.style === "wechat" ? wechatStyles.th : "border: 1px solid #d9d9d9; padding: 0.45em 0.6em; background: #f6f6f6;";
+  const tdStyle = options.style === "wechat" ? wechatStyles.td : "border: 1px solid #d9d9d9; padding: 0.45em 0.6em;";
   const head = `<thead><tr>${header
-    .map((cell, cellIndex) => `<th style="${thStyle} text-align: ${alignments[cellIndex] || "left"};">${renderInline(cell)}</th>`)
+    .map(
+      (cell, cellIndex) =>
+        `<th${cellAttributes(thStyle, alignments[cellIndex] || "left")}>${renderInline(cell, options)}</th>`,
+    )
     .join("")}</tr></thead>`;
   const body = `<tbody>${rows
     .map(
@@ -677,18 +796,32 @@ function renderTable(lines, index) {
         `<tr>${header
           .map(
             (_, cellIndex) =>
-              `<td style="${tdStyle} text-align: ${alignments[cellIndex] || "left"};">${renderInline(row[cellIndex] || "")}</td>`,
+              `<td${cellAttributes(tdStyle, alignments[cellIndex] || "left")}>${renderInline(row[cellIndex] || "", options)}</td>`,
           )
           .join("")}</tr>`,
     )
     .join("")}</tbody>`;
+  const tableAttrs =
+    options.style === "wechat"
+      ? ` border="1" cellpadding="6" cellspacing="0" style="${tableStyle}"`
+      : ` style="${tableStyle}"`;
   return {
-    html: `<table style="${tableStyle}">${head}${body}</table>`,
+    html:
+      options.style === "wechat"
+        ? `<section${styleAttribute(wechatStyles.tableWrap)}><table${tableAttrs}>${head}${body}</table></section>`
+        : `<table${tableAttrs}>${head}${body}</table>`,
     markdown,
     nextIndex: i,
     rowCount: rows.length + 1,
     columnCount: header.length,
   };
+}
+
+function cellAttributes(style, alignment) {
+  const attributes = [];
+  if (style) attributes.push(`style="${style}"`);
+  if (alignment && alignment !== "left") attributes.push(`align="${alignment}"`);
+  return attributes.length > 0 ? ` ${attributes.join(" ")}` : "";
 }
 
 function splitTableRow(line) {
@@ -713,7 +846,7 @@ function splitTableRow(line) {
   return cells;
 }
 
-function renderInline(value) {
+function renderInline(value, options = {}) {
   const tokens = [];
   let source = value;
   const stash = (html) => {
@@ -722,20 +855,21 @@ function renderInline(value) {
     return token;
   };
 
-  source = source.replace(/`([^`\n]+)`/g, (_, code) => stash(`<code>${escapeHtml(code)}</code>`));
+  source = source.replace(/`([^`\n]+)`/g, (_, code) => stash(`<code${wechatStyle(options, "inlineCode")}>${escapeHtml(code)}</code>`));
   source = source.replace(
     /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
-    (_, alt, src) => stash(`<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" />`),
+    (_, alt, src) =>
+      stash(`<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}"${wechatStyle(options, "image")} />`),
   );
   source = source.replace(
     /\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
-    (_, label, href) => stash(`<a href="${escapeAttribute(href)}">${renderInline(label)}</a>`),
+    (_, label, href) => stash(`<a href="${escapeAttribute(href)}">${renderInline(label, options)}</a>`),
   );
 
   let html = escapeHtml(source)
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
-    .replace(/~~([^~]+)~~/g, "<del>$1</del>");
+    .replace(/\*\*([^*]+)\*\*/g, `<strong${wechatStyle(options, "strong")}>$1</strong>`)
+    .replace(/\*([^*\n]+)\*/g, `<em${wechatStyle(options, "em")}>$1</em>`)
+    .replace(/~~([^~]+)~~/g, `<del${wechatStyle(options, "del")}>$1</del>`);
 
   for (const [token, tokenHtml] of tokens) {
     html = html.replaceAll(token, tokenHtml);
@@ -825,65 +959,82 @@ function copyArticleAssets(articleDir, outputArticleDir) {
   return copied.sort();
 }
 
-rmSync(outputDir, { recursive: true, force: true });
-ensureDir(outputDir);
+async function main() {
+  rmSync(outputDir, { recursive: true, force: true });
+  ensureDir(outputDir);
 
-const manifest = [];
-for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
-  const { raw, body } = splitFrontmatter(readFileSync(filePath, "utf8"));
-  const data = parseYaml(raw);
-  assertNoInlineMath(body, path.relative(root, filePath));
-  const articleDir = path.join(outputDir, slug);
-  ensureDir(articleDir);
+  const manifest = [];
+  for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
+    const { raw, body } = splitFrontmatter(readFileSync(filePath, "utf8"));
+    const data = parseYaml(raw);
+    assertNoInlineMath(body, path.relative(root, filePath));
+    const articleDir = path.join(outputDir, slug);
+    ensureDir(articleDir);
 
-  const title = data.title || slug;
-  const cover = data.cover || null;
-  const publishedBody = appendDisclaimer(body, data.disclaimer);
-  const plain = markdownToPlainText(publishedBody);
-  const sourcePlain = markdownToPlainText(body);
-  const xArticle = `# ${title}\n\n${publishedBody}\n`;
-  const xTeaser = `${title}\n\n${sourcePlain.split(/\n\s*\n/)[0] ?? ""}`;
-  const articleHtml = markdownToWechatHtml(publishedBody);
-  const xArticleBodyHtml = markdownToXArticleBodyHtml(publishedBody);
-  const xArticleHtml = renderXArticlePreview({
-    title,
-    bodyHtml: xArticleBodyHtml,
-    cover,
-    insertItems: markdownInsertItems(publishedBody),
-  });
-  const wechatHtml = [
-    `<!-- title: ${escapeHtml(title)} -->`,
-    `<!-- series: ${escapeHtml(data.series || "")} -->`,
-    articleHtml,
-    "",
-  ].join("\n");
+    const title = data.title || slug;
+    const cover = data.cover || null;
+    const publishedBody = appendDisclaimer(body, data.disclaimer);
+    const plain = markdownToPlainText(publishedBody);
+    const sourcePlain = markdownToPlainText(body);
+    const insertItems = markdownInsertItems(publishedBody);
+    const formulaAssets = await renderWechatFormulaAssets(
+      insertItems.filter((item) => item.kind === "formula"),
+      articleDir,
+    );
+    const xArticle = `# ${title}\n\n${publishedBody}\n`;
+    const xTeaser = `${title}\n\n${sourcePlain.split(/\n\s*\n/)[0] ?? ""}`;
+    const articleHtml = markdownToWechatHtml(publishedBody, {
+      style: "wechat",
+      renderDisplayMath: (tex, index) => renderWechatFormulaImage(tex, index, formulaAssets.byIndex.get(index)),
+    });
+    const xArticleBodyHtml = markdownToXArticleBodyHtml(publishedBody);
+    const xArticleHtml = renderXArticlePreview({
+      title,
+      bodyHtml: xArticleBodyHtml,
+      cover,
+      insertItems,
+    });
+    const wechatHtml = [
+      `<!-- title: ${escapeHtml(title)} -->`,
+      `<!-- series: ${escapeHtml(data.series || "")} -->`,
+      articleHtml,
+      "",
+    ].join("\n");
 
-  writeFileSync(path.join(articleDir, "x-article.md"), xArticle);
-  writeFileSync(path.join(articleDir, "x-article.html"), xArticleHtml);
-  writeFileSync(path.join(articleDir, "x-teaser.txt"), xTeaser.trim() + "\n");
-  writeFileSync(path.join(articleDir, "wechat.html"), wechatHtml);
-  const assetFiles = copyArticleAssets(assetDir, articleDir);
-  writeFileSync(
-    path.join(articleDir, "manifest.json"),
-    JSON.stringify(
-      {
-        slug,
-        title,
-        date: data.date,
-        series: data.series,
-        channels: data.channels || [],
-        cover,
-        disclaimer: data.disclaimer || null,
-        status: data.status || "draft",
-        words: countWords(plain),
-        files: ["x-article.md", "x-article.html", "x-teaser.txt", "wechat.html", ...assetFiles],
-      },
-      null,
-      2,
-    ) + "\n",
-  );
-  manifest.push({ slug, title, status: data.status || "draft" });
+    writeFileSync(path.join(articleDir, "x-article.md"), xArticle);
+    writeFileSync(path.join(articleDir, "x-article.html"), xArticleHtml);
+    writeFileSync(path.join(articleDir, "x-teaser.txt"), xTeaser.trim() + "\n");
+    writeFileSync(path.join(articleDir, "wechat.html"), wechatHtml);
+    const assetFiles = copyArticleAssets(assetDir, articleDir);
+    writeFileSync(
+      path.join(articleDir, "manifest.json"),
+      JSON.stringify(
+        {
+          slug,
+          title,
+          date: data.date,
+          series: data.series,
+          channels: data.channels || [],
+          cover,
+          disclaimer: data.disclaimer || null,
+          status: data.status || "draft",
+          words: countWords(plain),
+          files: ["x-article.md", "x-article.html", "x-teaser.txt", "wechat.html", ...formulaAssets.files, ...assetFiles],
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    manifest.push({ slug, title, status: data.status || "draft" });
+  }
+
+  writeFileSync(path.join(outputDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  console.log(`Exported ${manifest.length} platform article(s) to ${path.relative(root, outputDir)}.`);
 }
 
-writeFileSync(path.join(outputDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-console.log(`Exported ${manifest.length} platform article(s) to ${path.relative(root, outputDir)}.`);
+main()
+  .finally(shutdownMathJax)
+  .catch((error) => {
+    console.error(error.message);
+    process.exit(1);
+  });

@@ -21,4 +21,8 @@ This repository has two roles:
 
 Individual platform articles are not rendered as regular pages on this site, so the personal site does not become a public draft inbox.
 
+## Published Articles
+
+- 2026-07-03 · Why Your Grid Strategy Keeps Losing Money? (Chinese): [X Article](https://x.com/ysun1993/status/2072861906617213133?s=20) / [WeChat Official Account](https://mp.weixin.qq.com/s/bsCz3lHxruII4tBo13QJqQ)
+
 Follow my [X account](https://x.com/ysun1993) for updates.
