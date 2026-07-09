@@ -17,9 +17,9 @@ const wechatStyles = {
   h1: "display:table;margin:2.2em auto 1.2em;padding:0 .4em .2em;border-bottom:2px solid #f2994a;color:#222;font-size:20px;line-height:1.35;font-weight:700;text-align:center;",
   h2: "display:table;margin:2.4em auto 1.2em;padding:.12em .55em;background:#f2994a;color:#fff;font-size:18px;line-height:1.45;font-weight:700;text-align:center;",
   h3: "margin:2em 0 .9em;padding-left:.65em;border-left:4px solid #f2994a;color:#222;font-size:16px;line-height:1.5;font-weight:700;",
-  quote: "margin:1.2em 0;padding:.75em 0 .75em 1em;border-left:4px solid #ddd;color:#666;background:#fafafa;line-height:1.8;",
-  ul: "margin:.8em 0 1.1em;padding-left:1.6em;",
-  ol: "margin:.8em 0 1.1em;padding-left:1.6em;",
+  quote: "margin:.65em 0 1.15em;padding:.75em 0 .75em 1em;border-left:4px solid #ddd;color:#666;background:#fafafa;line-height:1.8;",
+  ul: "margin:.35em 0 1.1em;padding-left:1.6em;",
+  ol: "margin:.35em 0 1.1em;padding-left:1.6em;",
   li: "margin:.35em 0;",
   hr: "border:none;border-top:1px solid #e5e5e5;margin:1.6em 0;",
   codeBlock:
@@ -27,7 +27,7 @@ const wechatStyles = {
   codeText: "font-family:Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;",
   inlineCode:
     "font-family:Menlo,Consolas,monospace;color:#d35400;background:#fff4e8;border-radius:4px;padding:.08em .28em;letter-spacing:0;",
-  figure: "margin:1.4em 0;text-align:center;",
+  figure: "margin:.85em 0 1.25em;text-align:center;",
   image: "display:block;max-width:100%;height:auto;margin:0 auto;border-radius:4px;",
   caption: "margin:.45em 0 0;color:#888;font-size:13px;line-height:1.55;text-align:center;",
   formula: "margin:1.15em 0;text-align:center;",
@@ -35,6 +35,14 @@ const wechatStyles = {
   table: "border-collapse:collapse;width:100%;font-size:14px;line-height:1.6;letter-spacing:0;",
   th: "background:#fff4e8;font-weight:700;",
   td: "",
+  link: "color:#576b95;text-decoration:underline;text-underline-offset:2px;",
+  citationSup: "margin-left:.12em;color:#d35400;font-size:.75em;line-height:0;vertical-align:super;",
+  citationSection:
+    "margin:2em 0 0;padding-top:1em;border-top:1px solid #e5e5e5;color:#666;font-size:13px;line-height:1.65;letter-spacing:0;",
+  citationTitle: "margin:0 0 .8em;color:#222;font-size:15px;font-weight:700;",
+  citationItem: "margin:.4em 0;word-break:break-all;",
+  citationIndex: "color:#d35400;font-weight:700;",
+  citationUrl: "font-style:italic;color:#666;",
   strong: "color:#d35400",
   em: "color:#666",
   del: "color:#888",
@@ -111,10 +119,16 @@ function markdownToPlainText(markdown) {
 }
 
 function appendDisclaimer(markdown, key) {
-  if (!key) return markdown.trim();
+  const footer = disclaimerMarkdown(key);
+  if (!footer) return markdown.trim();
+  return `${markdown.trim()}\n\n${footer}`;
+}
+
+function disclaimerMarkdown(key) {
+  if (!key) return "";
   const disclaimer = disclaimers[key];
   if (!disclaimer) throw new Error(`Unknown disclaimer: ${key}`);
-  return `${markdown.trim()}\n\n---\n\n*${disclaimer}*`;
+  return `---\n\n*${disclaimer}*`;
 }
 
 function assertNoInlineMath(markdown, filePath) {
@@ -159,6 +173,11 @@ function assertNoInlineMath(markdown, filePath) {
 }
 
 function markdownToWechatHtml(markdown, options = {}) {
+  if (options.style === "wechat" && options.citeExternalLinks) {
+    options.linkCitations = [];
+    options.linkCitationByHref = new Map();
+  }
+
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const html = [];
   const counts = { image: 0, formula: 0, table: 0, code: 0 };
@@ -279,11 +298,27 @@ function markdownToWechatHtml(markdown, options = {}) {
       i += 1;
     }
     const paragraphHtml = `<p${wechatStyle(options, "paragraph")}>${paragraph.map((item) => renderInline(item, options)).join("<br/>")}</p>`;
-    html.push(options.style === "wechat" ? `${paragraphHtml}<br/>` : paragraphHtml);
+    html.push(options.style === "wechat" && !isTightFollowingBlock(lines, i) ? `${paragraphHtml}<br/>` : paragraphHtml);
   }
 
-  const content = html.join("\n");
+  const content = [...html, renderLinkCitations(options)].filter(Boolean).join("\n");
   return options.style === "wechat" ? `<section${wechatStyle(options, "article")}>\n${content}\n</section>` : content;
+}
+
+function isTightFollowingBlock(lines, index) {
+  let i = index;
+  while (i < lines.length && !lines[i].trim()) i += 1;
+  if (i >= lines.length) return false;
+  const line = lines[i].trim();
+  return (
+    /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/.test(line) ||
+    /^\s*>\s?/.test(lines[i]) ||
+    /^\s*[-*+]\s+/.test(lines[i]) ||
+    /^\s*\d+[.)]\s+/.test(lines[i]) ||
+    /^(`{3,}|~{3,})\s*([A-Za-z0-9_-]+)?\s*$/.test(lines[i]) ||
+    line.startsWith("$$") ||
+    isTableStart(lines, i)
+  );
 }
 
 function markdownInsertItems(markdown) {
@@ -846,6 +881,51 @@ function splitTableRow(line) {
   return cells;
 }
 
+function isMpWeixinLink(href) {
+  return /^https?:\/\/mp\.weixin\.qq\.com\//i.test(href);
+}
+
+function shouldCiteExternalLink(href, options = {}) {
+  return options.style === "wechat" && options.citeExternalLinks && /^https?:\/\//i.test(href) && !isMpWeixinLink(href);
+}
+
+function inlineText(value) {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[`*_~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function addLinkCitation(href, label, options = {}) {
+  if (!options.linkCitations) options.linkCitations = [];
+  if (!options.linkCitationByHref) options.linkCitationByHref = new Map();
+
+  const existing = options.linkCitationByHref.get(href);
+  if (existing) return existing;
+
+  const index = options.linkCitations.length + 1;
+  options.linkCitations.push({ index, href, label: inlineText(label) || href });
+  options.linkCitationByHref.set(href, index);
+  return index;
+}
+
+function renderLinkCitations(options = {}) {
+  const citations = options.linkCitations || [];
+  if (options.style !== "wechat" || citations.length === 0) return "";
+
+  const items = citations
+    .map(
+      ({ index, href, label }) =>
+        `<p${styleAttribute(wechatStyles.citationItem)}><span${styleAttribute(wechatStyles.citationIndex)}>[${index}]</span> ${escapeHtml(
+          label,
+        )}: <span${styleAttribute(wechatStyles.citationUrl)}>${escapeHtml(href)}</span></p>`,
+    )
+    .join("");
+  return `<section${styleAttribute(wechatStyles.citationSection)}><p${styleAttribute(wechatStyles.citationTitle)}>引用链接</p>${items}</section>`;
+}
+
 function renderInline(value, options = {}) {
   const tokens = [];
   let source = value;
@@ -863,7 +943,16 @@ function renderInline(value, options = {}) {
   );
   source = source.replace(
     /\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
-    (_, label, href) => stash(`<a href="${escapeAttribute(href)}">${renderInline(label, options)}</a>`),
+    (_, label, href) => {
+      const renderedLabel = renderInline(label, options);
+      if (shouldCiteExternalLink(href, options)) {
+        const index = addLinkCitation(href, label, options);
+        return stash(
+          `<span${wechatStyle(options, "link")}>${renderedLabel}<sup${styleAttribute(wechatStyles.citationSup)}>[${index}]</sup></span>`,
+        );
+      }
+      return stash(`<a href="${escapeAttribute(href)}"${wechatStyle(options, "link")}>${renderedLabel}</a>`);
+    },
   );
 
   let html = escapeHtml(source)
@@ -983,10 +1072,16 @@ async function main() {
     );
     const xArticle = `# ${title}\n\n${publishedBody}\n`;
     const xTeaser = `${title}\n\n${sourcePlain.split(/\n\s*\n/)[0] ?? ""}`;
-    const articleHtml = markdownToWechatHtml(publishedBody, {
-      style: "wechat",
-      renderDisplayMath: (tex, index) => renderWechatFormulaImage(tex, index, formulaAssets.byIndex.get(index)),
-    });
+    const articleHtml = [
+      markdownToWechatHtml(body, {
+        style: "wechat",
+        citeExternalLinks: true,
+        renderDisplayMath: (tex, index) => renderWechatFormulaImage(tex, index, formulaAssets.byIndex.get(index)),
+      }),
+      data.disclaimer ? markdownToWechatHtml(disclaimerMarkdown(data.disclaimer), { style: "wechat" }) : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
     const xArticleBodyHtml = markdownToXArticleBodyHtml(publishedBody);
     const xArticleHtml = renderXArticlePreview({
       title,

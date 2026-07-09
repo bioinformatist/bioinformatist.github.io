@@ -23,6 +23,7 @@ social_media_card = "projects/investment-education-card.png"
 
 ## 已发布文章
 
+- 2026-07-08 · 为什么黄金不适合大笔梭哈？：[X Article](https://x.com/ysun1993/status/2074791646420688921) / [微信公众号](https://mp.weixin.qq.com/s/HSgQgcMLMWJbUMiB2Y5_hQ)
 - 2026-07-03 · 为什么你的网格策略一直亏钱？：[X Article](https://x.com/ysun1993/status/2072861906617213133?s=20) / [微信公众号](https://mp.weixin.qq.com/s/bsCz3lHxruII4tBo13QJqQ)
 
 当前可关注我的 [X 账号](https://x.com/ysun1993) 获取更新。

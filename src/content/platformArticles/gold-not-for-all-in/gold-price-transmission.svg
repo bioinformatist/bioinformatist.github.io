@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">黄金价格传导链示意图</title>
+  <desc id="desc">解释宏观数据、实际利率、美元、风险与储备需求如何共同影响黄金价格。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d0f11"/>
+      <stop offset="0.58" stop-color="#171714"/>
+      <stop offset="1" stop-color="#2b1d0d"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1aa"/>
+      <stop offset="0.48" stop-color="#efb64a"/>
+      <stop offset="1" stop-color="#94600f"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000" flood-opacity="0.36"/>
+    </filter>
+    <style>
+      .label { font-family: "Noto Sans CJK SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; fill: #f7f1df; }
+      .muted { fill: #c8c0ad; }
+      .goldText { fill: #f2b84b; }
+      .blueText { fill: #84c9ff; }
+      .title { font-size: 58px; font-weight: 850; }
+      .subtitle { font-size: 30px; }
+      .section { font-size: 28px; font-weight: 800; letter-spacing: 1px; }
+      .nodeTitle { font-size: 34px; font-weight: 850; }
+      .nodeText { font-size: 25px; }
+      .small { font-size: 22px; }
+      .chipText { font-size: 24px; font-weight: 800; fill: #1f1708; }
+      .card { fill: rgba(255,255,255,0.065); stroke: rgba(255,255,255,0.13); stroke-width: 2; }
+      .cardGold { fill: rgba(242,184,75,0.11); stroke: rgba(242,184,75,0.42); stroke-width: 2.5; }
+      .cardBlue { fill: rgba(132,201,255,0.10); stroke: rgba(132,201,255,0.35); stroke-width: 2.5; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <circle cx="1280" cy="80" r="310" fill="#f2b84b" opacity="0.07"/>
+  <circle cx="180" cy="860" r="280" fill="#2a80c9" opacity="0.07"/>
+
+  <text x="88" y="94" class="label title">黄金价格：不是涨跌口诀，是传导链</text>
+  <text x="92" y="146" class="label subtitle muted">黄金会不会涨，通常取决于机会成本、美元方向和信用压力的合力。</text>
+
+  <g filter="url(#shadow)">
+    <rect x="86" y="230" width="320" height="480" rx="28" class="card"/>
+    <text x="126" y="292" class="label section goldText">触发因素</text>
+    <text x="126" y="356" class="label nodeTitle">宏观数据</text>
+    <text x="126" y="404" class="label nodeText muted">就业</text>
+    <text x="126" y="450" class="label nodeText muted">通胀</text>
+    <text x="126" y="496" class="label nodeText muted">Fed 预期</text>
+    <line x1="126" y1="542" x2="346" y2="542" stroke="rgba(255,255,255,0.16)" stroke-width="2"/>
+    <text x="126" y="590" class="label nodeText">市场先重新定价</text>
+    <text x="126" y="628" class="label nodeText">未来利率路径</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="520" y="218" width="420" height="144" rx="24" class="card"/>
+    <text x="560" y="276" class="label nodeTitle blueText">实际利率</text>
+    <text x="560" y="322" class="label nodeText muted">决定持有黄金的机会成本</text>
+
+    <rect x="520" y="424" width="420" height="144" rx="24" class="card"/>
+    <text x="560" y="482" class="label nodeTitle blueText">美元方向</text>
+    <text x="560" y="528" class="label nodeText muted">影响非美元买家的购买力</text>
+
+    <rect x="520" y="630" width="420" height="144" rx="24" class="card"/>
+    <text x="560" y="688" class="label nodeTitle goldText">风险与储备需求</text>
+    <text x="560" y="734" class="label nodeText muted">信用压力、地缘风险、央行配置</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1062" y="216" width="414" height="226" rx="28" class="cardGold"/>
+    <text x="1106" y="278" class="label section goldText">更容易上行</text>
+    <text x="1106" y="334" class="label nodeText">实际利率下降</text>
+    <text x="1106" y="378" class="label nodeText">美元走弱</text>
+    <text x="1106" y="422" class="label nodeText">避险升温 / 央行买盘增强</text>
+
+    <rect x="1062" y="548" width="414" height="226" rx="28" class="cardBlue"/>
+    <text x="1106" y="610" class="label section blueText">更容易承压</text>
+    <text x="1106" y="666" class="label nodeText">实际利率上升</text>
+    <text x="1106" y="710" class="label nodeText">美元走强</text>
+    <text x="1106" y="754" class="label nodeText">避险退潮 / 拥挤交易撤退</text>
+  </g>
+
+  <path d="M406 470 C458 470 470 290 520 290" fill="none" stroke="#e7ad42" stroke-width="5" opacity="0.62"/>
+  <path d="M406 470 C462 470 474 496 520 496" fill="none" stroke="#e7ad42" stroke-width="5" opacity="0.50"/>
+  <path d="M406 470 C458 470 470 702 520 702" fill="none" stroke="#e7ad42" stroke-width="5" opacity="0.42"/>
+
+  <path d="M940 290 C1006 290 1002 320 1062 320" fill="none" stroke="#e7ad42" stroke-width="5" opacity="0.60"/>
+  <path d="M940 496 C1008 496 1002 374 1062 374" fill="none" stroke="#e7ad42" stroke-width="5" opacity="0.50"/>
+  <path d="M940 702 C1008 702 1002 422 1062 422" fill="none" stroke="#e7ad42" stroke-width="5" opacity="0.42"/>
+
+  <path d="M940 290 C1010 290 1004 646 1062 646" fill="none" stroke="#84c9ff" stroke-width="4" opacity="0.28"/>
+  <path d="M940 496 C1010 496 1004 710 1062 710" fill="none" stroke="#84c9ff" stroke-width="4" opacity="0.28"/>
+
+  <g transform="translate(90 830)">
+    <rect width="1420" height="124" rx="26" fill="rgba(0,0,0,0.32)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+    <text x="42" y="52" class="label nodeTitle">重点：</text>
+    <text x="144" y="52" class="label nodeText muted">黄金会涨，不等于适合梭哈；黄金会跌，也不等于没有配置价值。</text>
+    <text x="144" y="92" class="label nodeText goldText">核心不是单日涨跌，而是机会成本和信用压力。</text>
+  </g>
+</svg>

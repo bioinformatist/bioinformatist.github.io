@@ -7,10 +7,20 @@ const sourceDir = path.join(root, "src/content/platformArticles");
 const outputDir = path.join(root, "platform-exports");
 const wechatContentCharLimit = 20000;
 const wechatContentByteLimit = 1024 * 1024;
-const dryRun = process.argv.includes("--dry-run");
-const slug = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
+const args = process.argv.slice(2);
+const dryRun = args.includes("--dry-run");
+const updateMediaId = optionValue("--update-media-id", "--update");
+const slug = args.find((arg, index) => !arg.startsWith("--") && !["--update-media-id", "--update"].includes(args[index - 1]));
 
 loadEnvLocal(path.join(root, ".env.local"));
+
+function optionValue(...names) {
+  for (const name of names) {
+    const index = args.indexOf(name);
+    if (index !== -1) return args[index + 1] || "";
+  }
+  return "";
+}
 
 function loadEnvLocal(filePath) {
   if (!existsSync(filePath)) return;
@@ -125,7 +135,6 @@ function prepareWechatApiHtml(html) {
           : ""
       }</section>`,
     )
-    .replace(/<a\b[^>]*>([\s\S]*?)<\/a>/g, "$1")
     .replace(/\s(?:class|target|rel)="[^"]*"/g, "")
     .replace(/\son[a-z]+="[^"]*"/gi, "")
     .replace(/<br\s*\/?>/g, "<br/>")
@@ -346,6 +355,20 @@ async function addDraft(accessToken, payload) {
   return result.media_id;
 }
 
+async function updateDraft(accessToken, mediaId, payload) {
+  const url = `https://api.weixin.qq.com/cgi-bin/draft/update?access_token=${encodeURIComponent(accessToken)}`;
+  await postJson(
+    url,
+    {
+      media_id: mediaId,
+      index: 0,
+      articles: payload.articles[0],
+    },
+    "update WeChat draft",
+  );
+  return mediaId;
+}
+
 async function main() {
   runPlatformExport();
 
@@ -402,7 +425,7 @@ async function main() {
 
   const thumbMediaId = await uploadCoverImage(accessToken, coverPath);
   const payload = buildArticlePayload({ frontmatter, manifest: articleManifest, content, thumbMediaId });
-  const mediaId = await addDraft(accessToken, payload);
+  const mediaId = updateMediaId ? await updateDraft(accessToken, updateMediaId, payload) : await addDraft(accessToken, payload);
   const resultPath = path.join(articleOutputDir, "wechat-draft-result.json");
   writeFileSync(
     resultPath,
@@ -411,6 +434,7 @@ async function main() {
         slug: selectedSlug,
         title: payload.articles[0].title,
         media_id: mediaId,
+        mode: updateMediaId ? "update" : "add",
         content_images: imageSources.length,
         cover,
         created_at: new Date().toISOString(),
@@ -419,7 +443,7 @@ async function main() {
       2,
     ) + "\n",
   );
-  console.log(`Created WeChat draft for ${selectedSlug}.`);
+  console.log(`${updateMediaId ? "Updated" : "Created"} WeChat draft for ${selectedSlug}.`);
   console.log(`Draft media_id: ${mediaId}`);
   console.log(`Wrote ${path.relative(root, resultPath)}.`);
 }

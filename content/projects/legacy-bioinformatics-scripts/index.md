@@ -18,7 +18,7 @@ tags = ["生物信息", "脚本归档"]
     - [PacBio 处理工具](https://github.com/bioinformatist/bioinformatist.github.io/tree/main/static/archives/legacy-bioinformatics-scripts/python/pb_tools)：围绕 PacBio / SMRT 数据整理、读取和 XML 文件处理的早期脚本。
     - [GTF 注释统计](https://github.com/bioinformatist/bioinformatist.github.io/tree/main/static/archives/legacy-bioinformatics-scripts/python/GTF_statistics)
     - [BLAST 表格 span 过滤](https://github.com/bioinformatist/bioinformatist.github.io/blob/main/static/archives/legacy-bioinformatics-scripts/python/blastTableSubjectSpanFilter.py)：根据 subject 坐标跨度过滤 BLAST tabular 输出。
-    - [杂项脚本](https://github.com/bioinformatist/bioinformatist.github.io/tree/main/static/archives/legacy-bioinformatics-scripts/python)：包括代码收集、爬虫 demo 和 Dota2 自动砍树小脚本等。
+    - [杂项脚本](https://github.com/bioinformatist/bioinformatist.github.io/tree/main/static/archives/legacy-bioinformatics-scripts/python)：包括代码收集和爬虫 demo 等。
 - [Perl scripts](https://github.com/bioinformatist/bioinformatist.github.io/tree/main/static/archives/legacy-bioinformatics-scripts/perl)
     - [SAM / mpileup 过滤脚本](https://github.com/bioinformatist/bioinformatist.github.io/tree/main/static/archives/legacy-bioinformatics-scripts/perl)：包含 mpileup、SAM 和 PacBio reads 相关处理。
     - [PacBio reads 提取与 adapter 处理](https://github.com/bioinformatist/bioinformatist.github.io/tree/main/static/archives/legacy-bioinformatics-scripts/perl)：包括 CCS、subreads、特定 reads 和 adapter 相关脚本。
