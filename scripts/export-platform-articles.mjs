@@ -104,6 +104,17 @@ function parseYaml(raw) {
   return data;
 }
 
+function resolvePlatformArticleLinks(markdown, articleDataBySlug, platformUrlKey, sourcePath) {
+  return markdown.replace(/\]\(\.\.\/([A-Za-z0-9_-]+)\/index\.md\)/g, (link, targetSlug) => {
+    const target = articleDataBySlug.get(targetSlug);
+    const targetUrl = target?.[platformUrlKey];
+    if (!targetUrl) {
+      throw new Error(`${sourcePath}: ${targetSlug} has no ${platformUrlKey} for its platform-article link`);
+    }
+    return link.replace(`../${targetSlug}/index.md`, targetUrl);
+  });
+}
+
 function markdownToPlainText(markdown) {
   return markdown
     .replace(/```[^\n]*\n([\s\S]*?)```/g, "$1")
@@ -131,14 +142,14 @@ function disclaimerMarkdown(key) {
   return `---\n\n*${disclaimer}*`;
 }
 
-function assertNoInlineMath(markdown, filePath) {
-  const issues = [];
+function inlineMathExpressions(markdown) {
+  const expressions = [];
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   let inFence = false;
   let fenceMarker = "";
   let inDisplayMath = false;
 
-  lines.forEach((line, index) => {
+  lines.forEach((line) => {
     const fence = line.match(/^(`{3,}|~{3,})/);
     if (fence && !inFence) {
       inFence = true;
@@ -153,23 +164,27 @@ function assertNoInlineMath(markdown, filePath) {
       return;
     }
 
-    if (line.trim().startsWith("$$") || inDisplayMath) {
-      if (!line.trim().match(/^\$\$.*\$\$$/) && line.trim().startsWith("$$")) {
-        inDisplayMath = true;
-      } else if (inDisplayMath && line.trim().endsWith("$$")) {
+    const trimmed = line.trim();
+    if (inDisplayMath) {
+      if (trimmed.endsWith("$$")) {
         inDisplayMath = false;
       }
       return;
     }
+    if (trimmed.startsWith("$$")) {
+      if (!/^\$\$.+\$\$$/.test(trimmed)) {
+        inDisplayMath = true;
+      }
+      return;
+    }
 
-    if (/\$(?!\$|\s)([^$\n]+?)(?<!\s)\$(?!\$)/.test(line)) {
-      issues.push(`${filePath}:${index + 1}: inline math is not supported in platform exports`);
+    const withoutCode = line.replace(/`[^`\n]+`/g, "");
+    for (const match of withoutCode.matchAll(/\$(?!\$|\s)([^$\n]+?)(?<!\s)\$(?!\$)/g)) {
+      expressions.push(match[1].trim());
     }
   });
 
-  if (issues.length > 0) {
-    throw new Error(`${issues.join("\n")}\nUse plain text in prose, or promote important formulas to display math blocks.`);
-  }
+  return [...new Set(expressions)];
 }
 
 function markdownToWechatHtml(markdown, options = {}) {
@@ -375,8 +390,9 @@ function markdownInsertItems(markdown) {
   return items;
 }
 
-function markdownToXArticleBodyHtml(markdown) {
+function markdownToXArticleBodyHtml(markdown, renderInlineMath) {
   return markdownToWechatHtml(markdown, {
+    renderInlineMath,
     renderCodeBlock: (_code, language, index) => {
       const detail = language ? `用 X Article 的 Insert 功能插入 ${language} 代码块` : "用 X Article 的 Insert 功能插入代码块";
       return renderXPlaceholder(`代码块 ${index}`, detail);
@@ -388,7 +404,19 @@ function markdownToXArticleBodyHtml(markdown) {
   });
 }
 
-function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
+function markdownToReviewBodyHtml(markdown, { renderInlineMath, displayMathSvgByIndex }) {
+  return markdownToWechatHtml(markdown, {
+    renderInlineMath,
+    renderCodeBlock: (code, language) => {
+      const languageClass = language ? ` class="language-${escapeAttribute(language)}"` : "";
+      return `<pre><code${languageClass}>${escapeHtml(code)}</code></pre>`;
+    },
+    renderDisplayMath: (tex, index) =>
+      `<div class="math-display" data-tex="${escapeAttribute(tex)}">${displayMathSvgByIndex.get(index) || renderDisplayMath(tex)}</div>`,
+  });
+}
+
+function renderXArticlePreview({ title, caption, publishBodyHtml, reviewBodyHtml, cover, insertItems }) {
   const insertList = insertItems.length > 0 ? `<ol>${insertItems.map(renderInsertItem).join("")}</ol>` : "<p>没有需要单独插入的内容。</p>";
   const coverHtml = cover
     ? `<section class="cover-box">
@@ -433,6 +461,12 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       border-bottom: 1px solid var(--line);
       backdrop-filter: blur(8px);
     }
+    .mode-switch {
+      display: inline-flex;
+      overflow: hidden;
+      border: 1px solid #1f1f1f;
+      border-radius: 6px;
+    }
     button {
       border: 1px solid #1f1f1f;
       border-radius: 6px;
@@ -441,6 +475,16 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       cursor: pointer;
       font: inherit;
       padding: 0.45rem 0.8rem;
+    }
+    .mode-button {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--ink);
+    }
+    .mode-button[aria-pressed="true"] {
+      background: #1f1f1f;
+      color: white;
     }
     button.secondary {
       background: transparent;
@@ -465,7 +509,7 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       border-radius: 10px;
       padding: clamp(1rem, 3vw, 2.5rem);
     }
-    .title-box {
+    .copy-box {
       box-sizing: border-box;
       width: min(820px, calc(100vw - 2rem));
       margin: 1rem auto;
@@ -474,7 +518,7 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       border-radius: 10px;
       padding: 1rem 1.2rem;
     }
-    .title-box strong {
+    .copy-box strong {
       display: block;
       color: var(--muted);
       font-size: 0.9rem;
@@ -485,6 +529,10 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       font-size: 1.5rem;
       font-weight: 700;
       line-height: 1.35;
+    }
+    #captionText {
+      display: block;
+      white-space: pre-wrap;
     }
     .cover-box {
       box-sizing: border-box;
@@ -528,6 +576,15 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       margin: 1rem auto;
       border-radius: 8px;
     }
+    #reviewArticle figure {
+      margin: 1rem 0;
+    }
+    @media (min-width: 700px) {
+      #reviewArticle figure img {
+        width: auto;
+        max-height: 900px;
+      }
+    }
     figcaption {
       color: var(--muted);
       font-size: 0.9rem;
@@ -555,6 +612,23 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       background: #f6f2ea;
       border-radius: 6px;
       padding: 0.8rem 1rem;
+    }
+    .math-inline {
+      display: inline-flex;
+      max-width: 100%;
+      vertical-align: -0.15em;
+    }
+    .math-inline svg {
+      width: auto;
+      height: 1.15em;
+      max-width: 100%;
+    }
+    .math-display svg {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
     }
     blockquote {
       border-left: 4px solid var(--line);
@@ -588,31 +662,53 @@ function renderXArticlePreview({ title, bodyHtml, cover, insertItems }) {
       color: var(--ink);
       font: 0.92rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
     }
+    [hidden] {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
   <div class="toolbar">
-    <button type="button" id="selectTitle">选择标题</button>
-    <button type="button" id="selectArticle">选择正文</button>
-    <span class="status" id="status">先复制标题，再复制正文，然后按清单补图片、公式和表格。</span>
+    <div class="mode-switch" role="group" aria-label="预览模式">
+      <button type="button" class="mode-button" data-preview-mode="publish" aria-pressed="true">X 发布</button>
+      <button type="button" class="mode-button" data-preview-mode="review" aria-pressed="false">完整审阅</button>
+    </div>
+    <button type="button" id="selectTitle" class="publish-only">选择标题</button>
+    <button type="button" id="selectArticle" class="publish-only">选择正文</button>
+    <button type="button" id="selectCaption" class="publish-only">选择发布配文</button>
+    <span class="status" id="status">先复制标题和正文，补齐资源；发布时再填写配文。</span>
   </div>
-  <p class="note">X Article 的标题和正文是两个输入区。标题单独复制；正文区不包含标题，并把图片、LaTeX 公式和 Markdown 表格替换成占位符；粘贴正文后，按清单逐项在 X 里插入或右键复制图片。</p>
-  <section class="title-box">
+  <p class="note" id="publishNote">X Article 的标题、正文和发布配文是三个独立输入区。标题和配文分别复制；正文区不包含标题，行内 LaTeX 保持可直接复制的渲染状态，图片、展示公式、Markdown 表格和代码块使用占位符；粘贴正文后，按清单逐项补齐。</p>
+  <p class="note" id="reviewNote" hidden>完整审阅模式会在正文原位显示图片、行内与展示公式、表格和代码块；它只用于检查内容和排版，不用于整篇复制到 X Article。</p>
+  <section class="copy-box">
     <strong>标题</strong>
     <span id="titleText">${escapeHtml(title)}</span>
   </section>
+  <section class="copy-box">
+    <strong>发布配文（Publish 时填写，可选）</strong>
+    <span id="captionText">${escapeHtml(caption)}</span>
+  </section>
   ${coverHtml}
-  <article id="article" contenteditable="true">
-${bodyHtml}
+  <article id="publishArticle" contenteditable="true">
+${publishBodyHtml}
   </article>
-  <section class="assets insert-list">
+  <article id="reviewArticle" hidden>
+${reviewBodyHtml}
+  </article>
+  <section class="assets insert-list publish-only" id="insertList">
     <strong>插入清单：</strong>
     ${insertList}
   </section>
   <script>
-    const article = document.getElementById("article");
+    const publishArticle = document.getElementById("publishArticle");
+    const reviewArticle = document.getElementById("reviewArticle");
     const titleText = document.getElementById("titleText");
+    const captionText = document.getElementById("captionText");
     const status = document.getElementById("status");
+    const publishNote = document.getElementById("publishNote");
+    const reviewNote = document.getElementById("reviewNote");
+    const modeButtons = [...document.querySelectorAll("[data-preview-mode]")];
+    const publishOnly = [...document.querySelectorAll(".publish-only")];
 
     function selectNodeContents(node, message) {
       const range = document.createRange();
@@ -628,15 +724,48 @@ ${bodyHtml}
     }
 
     function selectArticle() {
-      selectNodeContents(article, "正文已选中。按 Ctrl/Cmd+C 复制，再粘贴到 X 的正文编辑器。");
+      selectNodeContents(publishArticle, "正文已选中。按 Ctrl/Cmd+C 复制，再粘贴到 X 的正文编辑器。");
+    }
+
+    function selectCaption() {
+      selectNodeContents(captionText, "发布配文已选中。按 Ctrl/Cmd+C 复制，再粘贴到 Publish 对话框的 caption 输入框。");
+    }
+
+    function setMode(mode) {
+      const review = mode === "review";
+      publishArticle.hidden = review;
+      reviewArticle.hidden = !review;
+      publishNote.hidden = review;
+      reviewNote.hidden = !review;
+      publishOnly.forEach((element) => {
+        element.hidden = review;
+      });
+      modeButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.previewMode === mode));
+      });
+      status.textContent = review
+        ? "完整资源已在正文原位展开。"
+        : "先复制标题和正文，补齐资源；发布时再填写配文。";
+      const url = new URL(window.location.href);
+      if (review) {
+        url.searchParams.set("mode", "review");
+      } else {
+        url.searchParams.delete("mode");
+      }
+      window.history.replaceState(null, "", url);
     }
 
     document.getElementById("selectTitle").addEventListener("click", selectTitle);
     document.getElementById("selectArticle").addEventListener("click", selectArticle);
+    document.getElementById("selectCaption").addEventListener("click", selectCaption);
+    modeButtons.forEach((button) => {
+      button.addEventListener("click", () => setMode(button.dataset.previewMode));
+    });
     document.querySelectorAll("textarea").forEach((textarea) => {
       textarea.addEventListener("focus", () => textarea.select());
       textarea.addEventListener("click", () => textarea.select());
     });
+    setMode(new URL(window.location.href).searchParams.get("mode") === "review" ? "review" : "publish");
   </script>
 </body>
 </html>
@@ -666,6 +795,16 @@ function renderInsertItem(item) {
     return `<li><strong>代码块 ${item.index}${language}</strong><textarea readonly spellcheck="false">${escapeHtml(item.content)}</textarea></li>`;
   }
   return "";
+}
+
+function xInsertItems(insertItems, assetDir) {
+  return insertItems.map((item) => {
+    if (item.kind !== "image" || !assetDir) return item;
+
+    const parsed = path.posix.parse(item.src);
+    const variant = path.posix.join(parsed.dir, `${parsed.name}-x${parsed.ext}`);
+    return existsSync(path.join(assetDir, variant)) ? { ...item, src: variant } : item;
+  });
 }
 
 function firstLine(value) {
@@ -738,16 +877,35 @@ async function ensureMathJax() {
   return mathJaxReady;
 }
 
-async function texToSvg(tex) {
+async function texToSvg(tex, display = true) {
   const mathJax = await ensureMathJax();
   const node = await mathJax.tex2svgPromise(tex, {
-    display: true,
+    display,
     em: 16,
     ex: 8,
     containerWidth: 960,
   });
   const adaptor = mathJax.startup.adaptor;
   return adaptor.serializeXML(adaptor.tags(node, "svg")[0]);
+}
+
+async function renderInlineMathSvgByTex(markdown) {
+  const byTex = new Map();
+  for (const tex of inlineMathExpressions(markdown)) {
+    byTex.set(tex, await texToSvg(tex, false));
+  }
+  return byTex;
+}
+
+function renderInlineMathSvg(tex, svgByTex) {
+  const svg = svgByTex.get(tex);
+  if (!svg) return escapeHtml(tex);
+  return `<span class="math-inline" data-tex="${escapeAttribute(tex)}" aria-label="${escapeAttribute(tex)}">${svg}</span>`;
+}
+
+function renderXInlineMathSource(tex) {
+  const source = tex.replaceAll("\\%", "%");
+  return `<span class="math-inline-source" data-tex="${escapeAttribute(tex)}">${escapeHtml(source)}</span>`;
 }
 
 function runMagick(args, label) {
@@ -760,6 +918,7 @@ function runMagick(args, label) {
 
 async function renderWechatFormulaAssets(formulaItems, outputArticleDir) {
   const byIndex = new Map();
+  const svgByIndex = new Map();
   const files = [];
   for (const item of formulaItems) {
     const baseName = `wechat-formula-${item.index}`;
@@ -767,13 +926,15 @@ async function renderWechatFormulaAssets(formulaItems, outputArticleDir) {
     const pngFile = `${baseName}.png`;
     const svgPath = path.join(outputArticleDir, svgFile);
     const pngPath = path.join(outputArticleDir, pngFile);
-    writeFileSync(svgPath, await texToSvg(item.content));
+    const svg = await texToSvg(item.content);
+    writeFileSync(svgPath, svg);
     runMagick(["-background", "none", "-density", "220", svgPath, "-trim", "-bordercolor", "none", "-border", "24x12", pngPath], `render ${pngFile}`);
     rmSync(svgPath, { force: true });
     byIndex.set(item.index, pngFile);
+    svgByIndex.set(item.index, svg);
     files.push(pngFile);
   }
-  return { byIndex, files };
+  return { byIndex, svgByIndex, files };
 }
 
 async function shutdownMathJax() {
@@ -930,7 +1091,7 @@ function renderInline(value, options = {}) {
   const tokens = [];
   let source = value;
   const stash = (html) => {
-    const token = `@@HTML_TOKEN_${tokens.length}@@`;
+    const token = `\uE000${tokens.length}\uE001`;
     tokens.push([token, html]);
     return token;
   };
@@ -954,6 +1115,10 @@ function renderInline(value, options = {}) {
       return stash(`<a href="${escapeAttribute(href)}"${wechatStyle(options, "link")}>${renderedLabel}</a>`);
     },
   );
+  source = source.replace(/\$(?!\$|\s)([^$\n]+?)(?<!\s)\$(?!\$)/g, (_, tex) => {
+    const content = tex.trim();
+    return stash(options.renderInlineMath ? options.renderInlineMath(content) : escapeHtml(content));
+  });
 
   let html = escapeHtml(source)
     .replace(/\*\*([^*]+)\*\*/g, `<strong${wechatStyle(options, "strong")}>$1</strong>`)
@@ -1052,42 +1217,62 @@ async function main() {
   rmSync(outputDir, { recursive: true, force: true });
   ensureDir(outputDir);
 
+  const articles = articleEntries(sourceDir).map((entry) => {
+    const { raw, body } = splitFrontmatter(readFileSync(entry.filePath, "utf8"));
+    return { ...entry, body, data: parseYaml(raw) };
+  });
+  const articleDataBySlug = new Map(articles.map(({ slug, data }) => [slug, data]));
   const manifest = [];
-  for (const { filePath, slug, assetDir } of articleEntries(sourceDir)) {
-    const { raw, body } = splitFrontmatter(readFileSync(filePath, "utf8"));
-    const data = parseYaml(raw);
-    assertNoInlineMath(body, path.relative(root, filePath));
+  for (const { filePath, slug, assetDir, body, data } of articles) {
     const articleDir = path.join(outputDir, slug);
     ensureDir(articleDir);
 
     const title = data.title || slug;
+    const xCaption = data.x_caption || data.description || "";
     const cover = data.cover || null;
-    const publishedBody = appendDisclaimer(body, data.disclaimer);
-    const plain = markdownToPlainText(publishedBody);
-    const sourcePlain = markdownToPlainText(body);
-    const insertItems = markdownInsertItems(publishedBody);
+    const xBody = resolvePlatformArticleLinks(body, articleDataBySlug, "x_url", filePath);
+    const wechatBody = resolvePlatformArticleLinks(body, articleDataBySlug, "wechat_url", filePath);
+    const xPublishedBody = appendDisclaimer(xBody, data.disclaimer);
+    const plain = markdownToPlainText(xPublishedBody);
+    const sourcePlain = markdownToPlainText(xBody);
+    const insertItems = markdownInsertItems(xPublishedBody);
+    const inlineMathSvgByTex = await renderInlineMathSvgByTex(xPublishedBody);
+    const renderReviewInlineMath = (tex) => renderInlineMathSvg(tex, inlineMathSvgByTex);
+    const renderWechatInlineMath = (tex) => escapeHtml(tex.replaceAll("\\%", "%"));
     const formulaAssets = await renderWechatFormulaAssets(
       insertItems.filter((item) => item.kind === "formula"),
       articleDir,
     );
-    const xArticle = `# ${title}\n\n${publishedBody}\n`;
+    const xArticle = `# ${title}\n\n${xPublishedBody}\n`;
     const xTeaser = `${title}\n\n${sourcePlain.split(/\n\s*\n/)[0] ?? ""}`;
     const articleHtml = [
-      markdownToWechatHtml(body, {
+      markdownToWechatHtml(wechatBody, {
         style: "wechat",
         citeExternalLinks: true,
+        renderInlineMath: renderWechatInlineMath,
         renderDisplayMath: (tex, index) => renderWechatFormulaImage(tex, index, formulaAssets.byIndex.get(index)),
       }),
-      data.disclaimer ? markdownToWechatHtml(disclaimerMarkdown(data.disclaimer), { style: "wechat" }) : "",
+      data.disclaimer
+        ? markdownToWechatHtml(disclaimerMarkdown(data.disclaimer), {
+            style: "wechat",
+            renderInlineMath: renderWechatInlineMath,
+          })
+        : "",
     ]
       .filter(Boolean)
       .join("\n");
-    const xArticleBodyHtml = markdownToXArticleBodyHtml(publishedBody);
+    const xArticleBodyHtml = markdownToXArticleBodyHtml(xPublishedBody, renderXInlineMathSource);
+    const reviewBodyHtml = markdownToReviewBodyHtml(xPublishedBody, {
+      renderInlineMath: renderReviewInlineMath,
+      displayMathSvgByIndex: formulaAssets.svgByIndex,
+    });
     const xArticleHtml = renderXArticlePreview({
       title,
-      bodyHtml: xArticleBodyHtml,
+      caption: xCaption,
+      publishBodyHtml: xArticleBodyHtml,
+      reviewBodyHtml,
       cover,
-      insertItems,
+      insertItems: xInsertItems(insertItems, assetDir),
     });
     const wechatHtml = [
       `<!-- title: ${escapeHtml(title)} -->`,
@@ -1111,10 +1296,18 @@ async function main() {
           series: data.series,
           channels: data.channels || [],
           cover,
+          x_caption: xCaption || null,
           disclaimer: data.disclaimer || null,
           status: data.status || "draft",
           words: countWords(plain),
-          files: ["x-article.md", "x-article.html", "x-teaser.txt", "wechat.html", ...formulaAssets.files, ...assetFiles],
+          files: [
+            "x-article.md",
+            "x-article.html",
+            "x-teaser.txt",
+            "wechat.html",
+            ...formulaAssets.files,
+            ...assetFiles,
+          ],
         },
         null,
         2,

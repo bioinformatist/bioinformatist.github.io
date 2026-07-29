@@ -31,6 +31,7 @@ npm run avatar
 npm run social-card
 npm run lint:actions
 npm run audit:lighthouse
+npm run test:platform-export
 npm run export:platform
 npm run preview:platform -- grid-strategy-expected-value
 npm run wechat:draft -- grid-strategy-expected-value
@@ -44,7 +45,7 @@ npm run wechat:draft -- grid-strategy-expected-value
 
 `export:platform` writes X Article and WeChat copy/paste packages into `platform-exports/`. That directory is ignored because exports are reproducible from source. The exporter reads `src/content/platformArticles/<slug>/index.md` and copies image assets from the same article directory.
 
-Platform article drafts may use headings, bold, italics, strikethrough, lists, blockquotes, tables, fenced code blocks, images, and display math. Avoid inline math: X Article does not support it, and GitHub Markdown previews can expose raw `$...$` text. Use plain text in prose, or promote important formulas to `$$...$$` display blocks. X Article exports include the source Markdown plus `x-article.html`, a browser assembly page with separate title and rich-text body areas, plus image, LaTeX, table, and code snippets for manual insertion. WeChat exports convert supported Markdown blocks to copy/paste HTML and preserve math as styled TeX. For generated images, keep a same-basename Markdown sidecar with the prompt next to the image, for example `cover.png` and `cover.md`.
+Platform article drafts may use headings, bold, italics, strikethrough, lists, blockquotes, tables, fenced code blocks, images, inline math, and display math. X Article exports include the source Markdown, a separately selectable publication caption from frontmatter `x_caption`, and `x-article.html`, which has one-click `X 发布` and `完整审阅` modes. Publish mode keeps the title, body, and caption separate, exposes inline LaTeX as copyable source text, and replaces images, display math, tables, and code blocks with insertion placeholders. It never relies on rendered SVG math surviving rich-text paste. Review mode renders every resource inside the article body for editorial inspection. WeChat exports preserve display math as images and degrade inline math to plain formula text without `$...$` delimiters. Prefer ordinary text for simple inline notation and keep complex formulas in `$$...$$` display blocks. For generated images, keep a same-basename Markdown sidecar with the prompt next to the image, for example `cover.png` and `cover.md`.
 
 Set `disclaimer: "investment-education"` in platform article frontmatter to append the shared investment-education risk disclaimer to X Article and WeChat exports.
 

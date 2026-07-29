@@ -1,0 +1,4 @@
+interface:
+  display_name: "Platform Article Workflow"
+  short_description: "Draft and publish X and WeChat long-form articles"
+  default_prompt: "Use $platform-article-workflow to draft, revise, verify, preview, or archive a platform article."

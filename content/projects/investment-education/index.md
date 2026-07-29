@@ -23,6 +23,7 @@ social_media_card = "projects/investment-education-card.png"
 
 ## 已发布文章
 
+- 2026-07-28 · 交易越多，输得越多？先把数学期望讲清楚：[X Article](https://x.com/ysun1993/status/2082011780910616868?s=20) / [微信公众号](https://mp.weixin.qq.com/s/7cL0MyWyTgslluT-3RHuIA?scene=1)
 - 2026-07-08 · 为什么黄金不适合大笔梭哈？：[X Article](https://x.com/ysun1993/status/2074791646420688921) / [微信公众号](https://mp.weixin.qq.com/s/HSgQgcMLMWJbUMiB2Y5_hQ)
 - 2026-07-03 · 为什么你的网格策略一直亏钱？：[X Article](https://x.com/ysun1993/status/2072861906617213133?s=20) / [微信公众号](https://mp.weixin.qq.com/s/bsCz3lHxruII4tBo13QJqQ)
 

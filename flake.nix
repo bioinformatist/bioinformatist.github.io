@@ -30,6 +30,7 @@
             packages = [
               pkgs.actionlint
               pkgs.imagemagick
+              pkgs.noto-fonts-cjk-sans
               pkgs.nodejs_22
               pkgs.zola
             ];
