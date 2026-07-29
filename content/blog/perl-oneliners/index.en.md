@@ -14,7 +14,7 @@ toc = true
 +++
 To use most of one-liners in this post, you should:
 
-1. If you're working on *Windows*, download and install [ActiveState Perl](https://www.activestate.com/platform/supported-languages/perl/).
+1. If you're working on *Windows*, download and install [ActiveState Perl](https://downloads.activestate.com/).
 2. Replace variable `$file` at the end of scripts by the real file name.
 3. Run the script as a command in `CMD`.
 
