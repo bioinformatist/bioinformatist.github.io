@@ -78,7 +78,9 @@ export function renderWechatEditorHandoff({
     }
     .actions {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
+      justify-content: flex-end;
       gap: 10px;
     }
     .button {
@@ -94,6 +96,9 @@ export function renderWechatEditorHandoff({
       cursor: pointer;
       text-decoration: none;
       white-space: nowrap;
+    }
+    .button[hidden] {
+      display: none;
     }
     .button:hover { background: #000; }
     .button:disabled {
@@ -172,6 +177,10 @@ export function renderWechatEditorHandoff({
         display: grid;
         grid-template-columns: 1fr 1fr;
       }
+      .actions .button {
+        width: 100%;
+        white-space: normal;
+      }
       .workspace {
         grid-template-columns: 1fr;
         width: min(100% - 20px, 720px);
@@ -194,6 +203,8 @@ export function renderWechatEditorHandoff({
       </div>
       <div class="actions">
         <a class="button secondary" id="extensionLink" href="${coseExtensionUrl}" target="_blank" rel="noreferrer">安装 COSE</a>
+        <a class="button secondary" id="loginLink" href="https://mp.weixin.qq.com/" target="_blank" rel="noreferrer" hidden>打开公众号后台</a>
+        <button class="button secondary" id="recheckButton" type="button" hidden>重新检查登录</button>
         <button class="button" id="sendButton" type="button" disabled>推入微信草稿箱</button>
       </div>
     </div>
@@ -222,6 +233,8 @@ export function renderWechatEditorHandoff({
     const statusText = document.getElementById("statusText");
     const sendButton = document.getElementById("sendButton");
     const extensionLink = document.getElementById("extensionLink");
+    const loginLink = document.getElementById("loginLink");
+    const recheckButton = document.getElementById("recheckButton");
     let wechatAccount = null;
 
     document.getElementById("articleTitle").textContent = payload.title;
@@ -248,10 +261,42 @@ export function renderWechatEditorHandoff({
       return window.$cose;
     }
 
+    async function checkWechatLogin() {
+      const cose = window.$cose;
+      wechatAccount = null;
+      sendButton.disabled = true;
+      loginLink.hidden = true;
+      recheckButton.hidden = false;
+      recheckButton.disabled = true;
+      setStatus("COSE 已就绪，正在确认公众号登录状态...", "checking");
+
+      try {
+        const accounts = await cose.getAccounts();
+        const latestAccount = accounts.find((account) =>
+          (account.uid === "wechat" || account.type === "wechat") && account.loggedIn === true
+        ) || null;
+        if (latestAccount) {
+          wechatAccount = latestAccount;
+          sendButton.disabled = false;
+          setStatus("COSE 已就绪，微信公众号已登录。", "ready");
+        } else {
+          loginLink.hidden = false;
+          setStatus("COSE 已就绪，但未检测到已登录的微信公众号。请打开公众号后台登录后重新检查。", "logged-out");
+        }
+      } catch (error) {
+        loginLink.hidden = false;
+        setStatus("COSE 已就绪，但登录状态检测失败：" + (error.message || error) + "。请打开公众号后台确认登录后重新检查。", "account-error");
+      } finally {
+        recheckButton.disabled = false;
+      }
+    }
+
     async function detectCose() {
       setStatus("正在等待 COSE 扩展注入...", "waiting");
       sendButton.disabled = true;
       extensionLink.hidden = true;
+      loginLink.hidden = true;
+      recheckButton.hidden = true;
 
       const cose = await waitForCose();
       if (!cose) {
@@ -268,33 +313,21 @@ export function renderWechatEditorHandoff({
         return;
       }
 
-      setStatus("COSE 已就绪，正在确认公众号登录状态...", "ready");
-      sendButton.disabled = false;
-      try {
-        const accounts = await cose.getAccounts();
-        wechatAccount = accounts.find((account) => (account.uid || account.type) === "wechat") || null;
-        if (wechatAccount?.loggedIn) {
-          setStatus("COSE 已就绪，微信公众号已登录。", "ready");
-        } else {
-          setStatus("COSE 已就绪；未确认公众号登录状态，点击后可在新标签页登录并重试。", "ready");
-        }
-      } catch (error) {
-        setStatus("COSE 已就绪，但登录状态检测失败：" + (error.message || error), "ready");
-      }
+      await checkWechatLogin();
     }
 
+    recheckButton.addEventListener("click", checkWechatLogin);
     sendButton.addEventListener("click", () => {
-      if (!window.$cose || payload.dryRun) return;
+      if (!window.$cose || payload.dryRun || wechatAccount?.loggedIn !== true) return;
 
       sendButton.disabled = true;
       setStatus("正在打开公众号后台并写入草稿...", "sending");
       const account = {
-        ...(wechatAccount || {}),
         uid: "wechat",
         type: "wechat",
         title: "微信公众号",
+        ...wechatAccount,
         checked: true,
-        loggedIn: true,
       };
 
       window.$cose.addTask(

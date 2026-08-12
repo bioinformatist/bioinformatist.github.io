@@ -6,4 +6,5 @@ public/
 npm-debug.log*
 .env.local
 platform-exports/
+.wechat-handoff-cache/
 .lighthouseci/

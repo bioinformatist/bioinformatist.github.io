@@ -31,16 +31,22 @@ strictly necessary corrections. Do not restart a broad rewrite without asking.
 
 ## Build The Argument
 
-Create or audit a section map before polishing sentences:
+Before drafting prose, create or audit a compact argument map that records the
+central claim, reader assumptions, and, for every section, its job, evidence
+type, transition, and visual purpose. Then:
 
 1. Give every section one distinct job.
-2. Introduce concepts and notation before formulas that use them.
+2. Introduce concepts, notation, and data definitions before formulas or
+   evidence that use them.
 3. Pair technical material with an intuitive example, table, or explanatory
    image when that materially reduces reader effort.
 4. Remove repeated conclusions, defensive meta-commentary, generic summaries,
    and rebuttals that do not advance the article.
 5. Add explicit transitions when the article changes abstraction level or
    introduces the next article in a series.
+
+Keep author/editor clarification out of reader-facing prose unless readers
+need that context to understand or evaluate the argument.
 
 Prefer a hard claim followed by its mechanism and evidence. Do not dilute the
 author's judgment merely to sound neutral.
@@ -83,11 +89,15 @@ vague abstractions.
 
 ## Manage Evidence And Assets
 
+- Generate assets only after the article structure and data definitions are
+  stable.
 - Keep source images and generated assets beside the article source.
 - Preserve original screenshots. Crop or reframe only for a stated readability
   or platform constraint, and keep the original.
 - Give every generated or processed image a same-basename Markdown sidecar
   recording its prompt or reproducible processing notes.
+- For data charts, record the source, baseline, calculation, and transformations
+  in the sidecar. Label non-data explanatory images as schematics.
 - Prefer argument-bearing diagrams over decoration.
 - Use a `-x` variant only when X needs different framing; keep the canonical
   image for review and WeChat.
@@ -135,7 +145,9 @@ After the user supplies the published URLs:
 
 - Set `status`, `published_date`, `x_url`, and `wechat_url` in the source
   frontmatter.
-- Update the Chinese and English investment-education project archives.
+- Add a Chinese-only article only to the Chinese investment-education project
+  archive. Update the English archive only when an English translation or
+  mirror was explicitly requested.
 - Preserve platform identity: X output links to prior X publications and
   WeChat output links to prior WeChat publications.
 - Re-run the exporter tests and site build before handoff.

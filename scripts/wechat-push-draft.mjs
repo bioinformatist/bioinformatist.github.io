@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { renderWechatEditorHandoff } from "./wechat-editor-handoff-page.mjs";
+import { reuseHandoffCache, writeHandoffCache } from "./wechat-handoff-cache.mjs";
 
 const root = process.cwd();
 const sourceDir = path.join(root, "src/content/platformArticles");
@@ -12,10 +13,9 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const editorHandoff = args.includes("--editor-handoff") || args.includes("--handoff");
 const serveHandoff = args.includes("--serve");
+const reuseUploads = args.includes("--reuse-uploads");
 const updateMediaId = optionValue("--update-media-id", "--update");
 const slug = args.find((arg, index) => !arg.startsWith("--") && !["--update-media-id", "--update"].includes(args[index - 1]));
-
-loadEnvLocal(path.join(root, ".env.local"));
 
 function optionValue(...names) {
   for (const name of names) {
@@ -460,6 +460,15 @@ function writeEditorHandoff({
 }
 
 async function main() {
+  if (reuseUploads && !editorHandoff) {
+    throw new Error("`--reuse-uploads` is only valid with `--editor-handoff`.");
+  }
+  if (reuseUploads && dryRun) {
+    throw new Error("`--reuse-uploads` cannot be combined with `--dry-run`.");
+  }
+  if (!reuseUploads) {
+    loadEnvLocal(path.join(root, ".env.local"));
+  }
   runPlatformExport();
 
   const rootManifest = readJson(path.join(outputDir, "manifest.json"));
@@ -486,7 +495,20 @@ async function main() {
     let coverMediaId = "";
     let replacements = new Map();
 
-    if (!dryRun) {
+    if (reuseUploads) {
+      const reused = reuseHandoffCache({
+        cachePath: path.join(root, ".wechat-handoff-cache", `${selectedSlug}.json`),
+        slug: selectedSlug,
+        articleOutputDir,
+        imageSources,
+        coverSource: cover,
+      });
+      replacements = reused.replacements;
+      coverMediaId = reused.coverMediaId;
+      for (const [imageSource, uploadedUrl] of replacements) {
+        handoffContent = replaceAllLiteral(handoffContent, `src="${imageSource}"`, `src="${uploadedUrl}"`);
+      }
+    } else if (!dryRun) {
       const accessToken = await getAccessToken();
       const uploadResult = await uploadAndReplaceContentImages(
         accessToken,
@@ -497,6 +519,15 @@ async function main() {
       handoffContent = uploadResult.content;
       replacements = uploadResult.replacements;
       coverMediaId = await uploadCoverImage(accessToken, coverPath);
+      writeHandoffCache({
+        cachePath: path.join(root, ".wechat-handoff-cache", `${selectedSlug}.json`),
+        slug: selectedSlug,
+        articleOutputDir,
+        imageSources,
+        replacements,
+        coverSource: cover,
+        coverMediaId,
+      });
     }
 
     writeEditorHandoff({
