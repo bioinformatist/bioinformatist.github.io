@@ -12,11 +12,12 @@
     "preview": "node scripts/zola-serve-lan.mjs",
     "lint:actions": "actionlint",
     "audit:lighthouse": "node scripts/audit-lighthouse.mjs",
-    "test:platform-export": "node --test scripts/export-platform-articles.test.mjs",
+    "test:platform-export": "node --test scripts/export-platform-articles.test.mjs scripts/wechat-editor-handoff-page.test.mjs",
     "export:platform": "node scripts/export-platform-articles.mjs",
     "preview:platform": "node scripts/serve-platform-export.mjs",
     "wechat:draft": "node scripts/wechat-push-draft.mjs",
-    "wechat:push-draft": "node scripts/wechat-push-draft.mjs"
+    "wechat:push-draft": "node scripts/wechat-push-draft.mjs",
+    "wechat:handoff": "node scripts/wechat-push-draft.mjs --editor-handoff --serve"
   },
   "dependencies": {
     "@mathjax/src": "4.1.2"

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { renderWechatEditorHandoff } from "./wechat-editor-handoff-page.mjs";
 
 const root = process.cwd();
 const sourceDir = path.join(root, "src/content/platformArticles");
@@ -9,6 +10,8 @@ const wechatContentCharLimit = 20000;
 const wechatContentByteLimit = 1024 * 1024;
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
+const editorHandoff = args.includes("--editor-handoff") || args.includes("--handoff");
+const serveHandoff = args.includes("--serve");
 const updateMediaId = optionValue("--update-media-id", "--update");
 const slug = args.find((arg, index) => !arg.startsWith("--") && !["--update-media-id", "--update"].includes(args[index - 1]));
 
@@ -231,7 +234,7 @@ function assertContentLength(content) {
       [
         `WeChat /draft/add route blocked: content must be below ${wechatContentCharLimit.toLocaleString("en-US")} characters after HTML compaction and image URL replacement; got ${chars}.`,
         "Do not keep stripping article structure just to force it through the official API.",
-        "Use an editor-based WeChat workflow such as doocs/md for this article, then paste/review in the WeChat editor.",
+        "Run `npm run wechat:handoff -- <slug>` to upload the assets and hand the rendered article to the WeChat editor through COSE.",
       ].join("\n"),
     );
   }
@@ -239,7 +242,7 @@ function assertContentLength(content) {
     throw new Error(
       [
         `WeChat /draft/add route blocked: content must be below 1MB after HTML compaction and image URL replacement; got ${formatBytes(bytes)}.`,
-        "Use an editor-based WeChat workflow such as doocs/md for this article.",
+        "Run `npm run wechat:handoff -- <slug>` to use the browser-editor route.",
       ].join("\n"),
     );
   }
@@ -306,7 +309,7 @@ async function uploadContentImage(accessToken, filePath) {
   const url = `https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=${encodeURIComponent(accessToken)}`;
   const result = await postForm(url, filePath, `upload content image ${path.basename(filePath)}`);
   if (!result.url) throw new Error(`upload content image returned no url: ${JSON.stringify(result)}`);
-  return result.url;
+  return result.url.replace(/^http:\/\/mmbiz\.qpic\.cn\//, "https://mmbiz.qpic.cn/");
 }
 
 async function uploadCoverImage(accessToken, filePath) {
@@ -322,10 +325,16 @@ function integerFlag(value, fallback = 0) {
   return Number.parseInt(String(value), 10) ? 1 : 0;
 }
 
+function articleMetadata(frontmatter, manifest) {
+  return {
+    title: frontmatter.title || manifest.title || manifest.slug,
+    author: frontmatter.author || envValue("WECHAT_AUTHOR", "WX_AUTHOR"),
+    digest: frontmatter.digest || frontmatter.description || "",
+  };
+}
+
 function buildArticlePayload({ frontmatter, manifest, content, thumbMediaId }) {
-  const title = frontmatter.title || manifest.title || manifest.slug;
-  const author = frontmatter.author || envValue("WECHAT_AUTHOR", "WX_AUTHOR");
-  const digest = frontmatter.digest || frontmatter.description || "";
+  const { title, author, digest } = articleMetadata(frontmatter, manifest);
   const article = {
     article_type: "news",
     title,
@@ -369,6 +378,87 @@ async function updateDraft(accessToken, mediaId, payload) {
   return mediaId;
 }
 
+async function uploadAndReplaceContentImages(accessToken, articleOutputDir, content, imageSources) {
+  const replacements = new Map();
+  let uploadedContent = content;
+
+  for (const imageSource of imageSources) {
+    const imagePath = resolveInside(articleOutputDir, imageSource);
+    const uploadedUrl = await uploadContentImage(accessToken, imagePath);
+    replacements.set(imageSource, uploadedUrl);
+    uploadedContent = replaceAllLiteral(uploadedContent, `src="${imageSource}"`, `src="${uploadedUrl}"`);
+  }
+
+  return { content: uploadedContent, replacements };
+}
+
+function writeEditorHandoff({
+  selectedSlug,
+  articleOutputDir,
+  articleManifest,
+  frontmatter,
+  content,
+  previewContent,
+  imageSources,
+  cover,
+  coverMediaId,
+  replacements,
+}) {
+  const { title, digest } = articleMetadata(frontmatter, articleManifest);
+  const handoffPath = path.join(articleOutputDir, "wechat-handoff.html");
+  const resultPath = path.join(articleOutputDir, "wechat-handoff-result.json");
+
+  writeFileSync(
+    handoffPath,
+    renderWechatEditorHandoff({
+      title,
+      digest,
+      content,
+      previewContent,
+      cover,
+      contentImageCount: imageSources.length,
+      coverMediaId,
+      dryRun,
+    }),
+  );
+  writeFileSync(
+    resultPath,
+    JSON.stringify(
+      {
+        slug: selectedSlug,
+        title,
+        mode: "editor-handoff",
+        dry_run: dryRun,
+        content_images: Object.fromEntries(replacements),
+        cover,
+        cover_media_id: coverMediaId || null,
+        created_at: new Date().toISOString(),
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  console.log(`${dryRun ? "Prepared dry-run" : "Prepared"} WeChat editor handoff for ${selectedSlug}.`);
+  console.log(`Wrote ${path.relative(root, handoffPath)}.`);
+  console.log(`Wrote ${path.relative(root, resultPath)}.`);
+
+  if (serveHandoff) {
+    const result = spawnSync(
+      process.execPath,
+      [path.join("scripts", "serve-platform-export.mjs"), selectedSlug, "--no-export", "--open=wechat-handoff.html"],
+      {
+        cwd: root,
+        stdio: "inherit",
+      },
+    );
+    if (result.signal === "SIGINT" || result.signal === "SIGTERM") return;
+    if (result.status !== 0) {
+      throw new Error("WeChat handoff preview server failed.");
+    }
+  }
+}
+
 async function main() {
   runPlatformExport();
 
@@ -388,6 +478,44 @@ async function main() {
   assertPermanentImageFile(coverPath);
   for (const imageSource of imageSources) {
     assertUploadImageFile(resolveInside(articleOutputDir, imageSource));
+  }
+
+  if (editorHandoff) {
+    const previewContent = content;
+    let handoffContent = content;
+    let coverMediaId = "";
+    let replacements = new Map();
+
+    if (!dryRun) {
+      const accessToken = await getAccessToken();
+      const uploadResult = await uploadAndReplaceContentImages(
+        accessToken,
+        articleOutputDir,
+        handoffContent,
+        imageSources,
+      );
+      handoffContent = uploadResult.content;
+      replacements = uploadResult.replacements;
+      coverMediaId = await uploadCoverImage(accessToken, coverPath);
+    }
+
+    writeEditorHandoff({
+      selectedSlug,
+      articleOutputDir,
+      articleManifest,
+      frontmatter,
+      content: handoffContent,
+      previewContent,
+      imageSources,
+      cover,
+      coverMediaId,
+      replacements,
+    });
+    return;
+  }
+
+  if (serveHandoff) {
+    throw new Error("`--serve` is only valid with `--editor-handoff`.");
   }
 
   if (dryRun) {
@@ -413,15 +541,8 @@ async function main() {
   }
 
   const accessToken = await getAccessToken();
-  const replacements = new Map();
-  for (const imageSource of imageSources) {
-    const imagePath = resolveInside(articleOutputDir, imageSource);
-    const uploadedUrl = await uploadContentImage(accessToken, imagePath);
-    replacements.set(imageSource, uploadedUrl);
-  }
-  for (const [from, to] of replacements) {
-    content = replaceAllLiteral(content, `src="${from}"`, `src="${to}"`);
-  }
+  const uploadResult = await uploadAndReplaceContentImages(accessToken, articleOutputDir, content, imageSources);
+  content = uploadResult.content;
 
   const thumbMediaId = await uploadCoverImage(accessToken, coverPath);
   const payload = buildArticlePayload({ frontmatter, manifest: articleManifest, content, thumbMediaId });

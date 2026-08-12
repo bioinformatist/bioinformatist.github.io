@@ -117,6 +117,14 @@ Before handoff:
    the article is ready for publication review. Report the LAN URL.
 5. Leave final copy edits to the user.
 
+For WeChat publication, run the official API dry-run first. If its compact HTML
+exceeds the platform limit, preserve the approved renderer and use
+`nix develop -c npm run wechat:handoff -- <slug>` rather than restyling the
+article in another editor. The handoff uploads image assets, then relies on the
+COSE browser extension and the user's logged-in WeChat session to populate and
+save a draft. Require a final check in the WeChat backend because browser
+automation can drift when the editor DOM changes.
+
 Do not create or update a WeChat draft, publish externally, commit, or push
 unless the user explicitly requests that action. Never run the general exporter
 and WeChat draft command concurrently.

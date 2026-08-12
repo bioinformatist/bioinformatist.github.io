@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#f7f3ec"/>
+  <style>
+    text {
+      font-family: "Noto Sans CJK SC", sans-serif;
+      fill: #202020;
+      letter-spacing: 0;
+    }
+    .title { font-size: 38px; font-weight: 700; }
+    .subtitle { font-size: 22px; fill: #5f5a54; }
+    .label { font-size: 22px; font-weight: 700; }
+    .body { font-size: 19px; }
+    .small { font-size: 16px; fill: #68625c; }
+  </style>
+  <title>长鑫科技上市首日估值账单</title>
+  
+    <text x="60" y="70" class="title">市场给了多高的估值？</text>
+    <text x="60" y="110" class="subtitle">长鑫科技上市首日估值倍数，与 Micron 写作时点粗略对照</text>
+
+    <rect x="95" y="145" width="1010" height="575" fill="#fffdf9" stroke="#202020" stroke-width="3"/>
+    <text x="300" y="205" class="small" text-anchor="middle">估值指标</text>
+    <text x="660" y="205" class="label" text-anchor="middle" fill="#d97800">长鑫科技</text>
+    <text x="935" y="205" class="label" text-anchor="middle" fill="#23795d">Micron（MU）</text>
+    <line x1="130" y1="235" x2="1070" y2="235" stroke="#d9d2c8" stroke-width="2"/>
+
+    <text x="300" y="295" class="body" text-anchor="middle">参考市值</text>
+    <text x="660" y="295" class="label" text-anchor="middle" fill="#d97800">3.28 万亿元</text>
+    <text x="935" y="295" class="label" text-anchor="middle" fill="#23795d">约 8462 亿美元</text>
+    <line x1="130" y1="335" x2="1070" y2="335" stroke="#e6dfd6" stroke-width="2"/>
+
+    <text x="300" y="410" class="label" text-anchor="middle">市销率 P/S</text>
+    <text x="300" y="445" class="small" text-anchor="middle">市值 ÷ 营业收入</text>
+    <text x="660" y="435" font-size="58" font-weight="800" text-anchor="middle" fill="#d97800">约 53 倍</text>
+    <text x="935" y="435" font-size="48" font-weight="800" text-anchor="middle" fill="#23795d">约 9.4 倍</text>
+    <line x1="130" y1="485" x2="1070" y2="485" stroke="#e6dfd6" stroke-width="2"/>
+
+    <text x="300" y="560" class="label" text-anchor="middle">市净率 P/B</text>
+    <text x="300" y="595" class="small" text-anchor="middle">市值 ÷ 股东权益</text>
+    <text x="660" y="585" font-size="58" font-weight="800" text-anchor="middle" fill="#d97800">约 58 倍</text>
+    <text x="935" y="585" font-size="48" font-weight="800" text-anchor="middle" fill="#23795d">约 8.4 倍</text>
+
+    <rect x="95" y="660" width="1010" height="60" fill="#202020"/>
+    <text x="600" y="699" class="body" text-anchor="middle" style="fill:#fffdf9">财务期间不同，仅作数量级参照，不直接等于公允价值</text>
+  
+</svg>

@@ -6,15 +6,20 @@ import path from "node:path";
 
 const root = process.cwd();
 const outputRoot = path.join(root, "platform-exports");
-const port = process.env.PORT || "8765";
+const requestedPort = Number(process.env.PORT || "8765");
+const args = process.argv.slice(2);
+const skipExport = args.includes("--no-export");
+const openPage = args.find((arg) => arg.startsWith("--open="))?.slice("--open=".length) || "x-article.html";
 
-const exportResult = spawnSync(process.execPath, [path.join("scripts", "export-platform-articles.mjs")], {
-  cwd: root,
-  stdio: "inherit",
-});
+if (!skipExport) {
+  const exportResult = spawnSync(process.execPath, [path.join("scripts", "export-platform-articles.mjs")], {
+    cwd: root,
+    stdio: "inherit",
+  });
 
-if (exportResult.status !== 0) {
-  process.exit(exportResult.status ?? 1);
+  if (exportResult.status !== 0) {
+    process.exit(exportResult.status ?? 1);
+  }
 }
 
 function firstLanAddress() {
@@ -37,7 +42,7 @@ function articleSlugs() {
 }
 
 function selectedSlug() {
-  const explicit = process.argv[2];
+  const explicit = args.find((arg) => !arg.startsWith("--"));
   if (explicit) return explicit;
 
   const slugs = articleSlugs();
@@ -94,7 +99,25 @@ const server = createServer((request, response) => {
   });
 });
 
-const lanUrl = `http://${firstLanAddress()}:${port}/`;
-server.listen(Number(port), "0.0.0.0", () => {
-  console.log(`Serving ${path.relative(root, articleDir)} at ${lanUrl}`);
-});
+function listen(port, remainingAttempts = 20) {
+  const handleListening = () => {
+    server.off("error", handleError);
+    const lanUrl = `http://${firstLanAddress()}:${port}/`;
+    const initialUrl = new URL(openPage, lanUrl).href;
+    console.log(`Serving ${path.relative(root, articleDir)} at ${initialUrl}`);
+  };
+  const handleError = (error) => {
+    server.off("listening", handleListening);
+    if (error.code === "EADDRINUSE" && !process.env.PORT && remainingAttempts > 0) {
+      listen(port + 1, remainingAttempts - 1);
+      return;
+    }
+    throw error;
+  };
+
+  server.once("error", handleError);
+  server.once("listening", handleListening);
+  server.listen(port, "0.0.0.0");
+}
+
+listen(requestedPort);

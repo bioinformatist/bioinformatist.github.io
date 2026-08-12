@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="640" viewBox="0 0 1600 640">
+  <rect width="1600" height="640" fill="#f7f3ec"/>
+  <style>
+    text {
+      font-family: "Noto Sans CJK SC", sans-serif;
+      fill: #202020;
+      letter-spacing: 0;
+    }
+    .title { font-size: 38px; font-weight: 700; }
+    .subtitle { font-size: 22px; fill: #5f5a54; }
+    .label { font-size: 22px; font-weight: 700; }
+    .body { font-size: 19px; }
+    .small { font-size: 16px; fill: #68625c; }
+  </style>
+  <title>我为什么不建议你买存储</title>
+  
+    <rect x="0" y="0" width="1600" height="640" fill="#121212"/>
+    <rect x="0" y="0" width="34" height="640" fill="#f29b21"/>
+
+    <text x="105" y="120" font-size="36" font-weight="600" style="fill:#f5f2ec">基本面没坏，为什么我不买？</text>
+    <text x="100" y="330" font-size="196" font-weight="900" style="fill:#f29b21">存储</text>
+    <text x="112" y="420" font-size="48" font-weight="700" style="fill:#f5f2ec">未来十年的故事</text>
+    <text x="112" y="480" font-size="48" font-weight="700" style="fill:#f5f2ec">可能几天就买完了</text>
+
+    <rect x="900" y="120" width="560" height="350" rx="18" fill="#1d1d1d" stroke="#f29b21" stroke-width="8"/>
+    <rect x="955" y="165" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1120" y="165" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1285" y="165" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="955" y="237" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1120" y="237" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1285" y="237" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="955" y="309" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1120" y="309" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1285" y="309" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="955" y="381" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1120" y="381" width="125" height="44" rx="5" fill="#f2eee7"/><rect x="1285" y="381" width="125" height="44" rx="5" fill="#f2eee7"/>
+    <rect x="932" y="470" width="20" height="48" fill="#f29b21"/><rect x="976" y="470" width="20" height="48" fill="#f29b21"/><rect x="1020" y="470" width="20" height="48" fill="#f29b21"/><rect x="1064" y="470" width="20" height="48" fill="#f29b21"/><rect x="1108" y="470" width="20" height="48" fill="#f29b21"/><rect x="1152" y="470" width="20" height="48" fill="#f29b21"/><rect x="1196" y="470" width="20" height="48" fill="#f29b21"/><rect x="1240" y="470" width="20" height="48" fill="#f29b21"/><rect x="1284" y="470" width="20" height="48" fill="#f29b21"/><rect x="1328" y="470" width="20" height="48" fill="#f29b21"/><rect x="1372" y="470" width="20" height="48" fill="#f29b21"/><rect x="1416" y="470" width="20" height="48" fill="#f29b21"/>
+    <text x="1180" y="585" font-size="32" font-weight="800" text-anchor="middle" style="fill:#7d7770">DRAM</text>
+
+    <path d="M820 525 C925 515 1015 480 1075 370 C1135 260 1195 130 1260 215 C1320 292 1345 440 1430 300 C1475 225 1520 250 1570 330"
+      fill="none" stroke="#f29b21" stroke-width="18" stroke-linecap="round"/>
+    <circle cx="1260" cy="215" r="14" fill="#f5f2ec"/>
+  
+</svg>

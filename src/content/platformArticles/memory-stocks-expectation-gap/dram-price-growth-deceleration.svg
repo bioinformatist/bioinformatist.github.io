@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#f7f3ec"/>
+  <style>
+    text {
+      font-family: "Noto Sans CJK SC", sans-serif;
+      fill: #202020;
+      letter-spacing: 0;
+    }
+    .title { font-size: 38px; font-weight: 700; }
+    .subtitle { font-size: 22px; fill: #5f5a54; }
+    .label { font-size: 22px; font-weight: 700; }
+    .body { font-size: 19px; }
+    .small { font-size: 16px; fill: #68625c; }
+  </style>
+  <title>DRAM价格水平与涨价速度</title>
+  
+    <text x="60" y="70" class="title">价格仍在涨，涨价速度已经掉下来了</text>
+    <text x="60" y="110" class="subtitle">Conventional DRAM 合约价：季度涨幅中值与累计涨幅推演</text>
+
+    <rect x="55" y="145" width="1090" height="585" rx="8" fill="#fffdf9" stroke="#d9d2c8" stroke-width="2"/>
+
+    <text x="80" y="177" class="label">相对 2025 Q4 的累计涨幅（中值连乘推演）</text>
+    
+          <line x1="135" y1="395" x2="1055" y2="395"
+            stroke="#e7e0d7" stroke-width="1"/>
+          <text x="120" y="401" class="small" text-anchor="end">0%</text>
+        
+          <line x1="135" y1="326.6666666666667" x2="1055" y2="326.6666666666667"
+            stroke="#e7e0d7" stroke-width="1"/>
+          <text x="120" y="332.6666666666667" class="small" text-anchor="end">100%</text>
+        
+          <line x1="135" y1="258.33333333333337" x2="1055" y2="258.33333333333337"
+            stroke="#e7e0d7" stroke-width="1"/>
+          <text x="120" y="264.33333333333337" class="small" text-anchor="end">200%</text>
+        
+          <line x1="135" y1="190" x2="1055" y2="190"
+            stroke="#e7e0d7" stroke-width="1"/>
+          <text x="120" y="196" class="small" text-anchor="end">300%</text>
+        
+
+    <polyline points="135,395 441.66666666666663,329.7416666666667 748.3333333333333,248.91870833333334 1055,215.68444145833337" fill="none" stroke="#23795d" stroke-width="7"/>
+    
+          <circle cx="135" cy="395" r="8" fill="#23795d"/>
+          
+          <text x="135" y="430" class="small" text-anchor="middle">2025 Q4</text>
+        
+          <circle cx="441.66666666666663" cy="329.7416666666667" r="8" fill="#23795d"/>
+          <text x="441.66666666666663" y="313.7416666666667" class="body" text-anchor="middle" fill="#175b45">95.5%</text>
+          <text x="441.66666666666663" y="430" class="small" text-anchor="middle">2026 Q1</text>
+        
+          <circle cx="748.3333333333333" cy="248.91870833333334" r="8" fill="#23795d"/>
+          <text x="748.3333333333333" y="232.91870833333334" class="body" text-anchor="middle" fill="#175b45">213.8%</text>
+          <text x="748.3333333333333" y="430" class="small" text-anchor="middle">2026 Q2</text>
+        
+          <circle cx="1055" cy="215.68444145833337" r="8" fill="#23795d"/>
+          <text x="1055" y="199.68444145833337" class="body" text-anchor="middle" fill="#175b45">262.4%</text>
+          <text x="1055" y="430" class="small" text-anchor="middle">2026 Q3</text>
+        
+
+    <text x="80" y="475" class="label">当季环比涨幅中值</text>
+    <line x1="135" y1="640" x2="1055" y2="640" stroke="#d8d0c7" stroke-width="2"/>
+    
+          <rect x="375.66666666666663" y="491.975" width="132" height="148.025" rx="5" fill="#f29b21"/>
+          <text x="441.66666666666663" y="479.975" class="label" text-anchor="middle" fill="#a95700">95.5%</text>
+          <text x="441.66666666666663" y="674" class="small" text-anchor="middle">2026 Q1</text>
+        
+          <rect x="682.3333333333333" y="546.225" width="132" height="93.77499999999999" rx="5" fill="#f29b21"/>
+          <text x="748.3333333333333" y="534.225" class="label" text-anchor="middle" fill="#a95700">60.5%</text>
+          <text x="748.3333333333333" y="674" class="small" text-anchor="middle">2026 Q2</text>
+        
+          <rect x="989" y="615.975" width="132" height="24.025" rx="5" fill="#f29b21"/>
+          <text x="1055" y="603.975" class="label" text-anchor="middle" fill="#a95700">15.5%</text>
+          <text x="1055" y="674" class="small" text-anchor="middle">2026 Q3</text>
+        
+    <text x="600" y="710" class="small" text-anchor="middle">绿线为涨幅中值连乘推演，并非官方价格指数或具体产品报价。</text>
+  
+</svg>
